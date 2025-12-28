@@ -49,7 +49,7 @@ public class GameManager {
     private double currentMouseWorldX = 0;
     private double currentMouseWorldY = 0;
 
-    // [MỚI] Callback để quay về Main Menu
+    // Callback để quay về Main Menu
     private Runnable onReturnToMainMenuHandler;
 
     // Constructor nhận tất cả các thành phần cốt lõi
@@ -114,7 +114,9 @@ public class GameManager {
 
         // Generate initial daily quests (chỉ tạo nếu chưa có load game, nhưng ở đây load game đã chạy trước nếu có)
         // Nếu load game thì quest có thể được load (nếu có tính năng đó), hiện tại cứ generate mới
-        questManager.generateDailyQuests();
+        if (questManager.getActiveQuests().isEmpty()) {
+            questManager.generateDailyQuests();
+        }
 
         System.out.println("Game Started!");
     }
@@ -123,7 +125,7 @@ public class GameManager {
      * Hàm update chính, chỉ điều phối các hàm con
      */
     private void updateGameLogic(long now) {
-        // ⚠️ BỔ SUNG: Dừng ngay lập tức nếu game đang tạm dừng
+        // Dừng ngay lập tức nếu game đang tạm dừng
         if (this.isPaused) {
             return;
         }
@@ -175,7 +177,7 @@ public class GameManager {
         movementHandler.update(deltaTime);
 
         // Cập nhật animation (View tự chạy)
-        playerView.updateAnimation(); // [QUAN TRỌNG] Yêu cầu PlayerView tự chạy animation
+        playerView.updateAnimation(); // Yêu cầu PlayerView tự chạy animation
 
         // Cập nhật các hành động chờ
         actionManager.updateTimedActions(worldMap, mainGameView, camera.getWorldOffsetX(), camera.getWorldOffsetY());
@@ -193,7 +195,7 @@ public class GameManager {
         }
 
         // Cập nhật logic động vật
-        // [SỬA] Đã thêm tham số mainPlayer để khớp với logic AnimalManager mới
+        // Đã thêm tham số mainPlayer để khớp với logic AnimalManager mới
         boolean animalsUpdated = animalManager.updateAnimals(now, mainPlayer);
         if (animalsUpdated) {
             actionManager.setMapNeedsUpdate(true); // Báo map cần vẽ lại
@@ -270,7 +272,7 @@ public class GameManager {
      */
     private void updateGhostPlacement() {
         ItemStack currentItem = mainPlayer.getCurrentItem();
-        // [SỬA] Truyền thêm thông tin tọa độ thực tế vào MainGameView để hỗ trợ đặt động vật tự do
+        // Truyền thêm thông tin tọa độ thực tế vào MainGameView để hỗ trợ đặt động vật tự do
         // (MainGameView và WorldRenderer cần được sửa để xử lý logic này nếu muốn hiển thị bóng mờ tự do)
         // Hiện tại chúng ta vẫn dùng tile-based cho cây trồng/rào, nhưng động vật sẽ đặt ở mouseWorldX/Y
         // Tạm thời logic hiển thị ghost placement vẫn dựa trên TileX/Y trong WorldRenderer
@@ -308,7 +310,7 @@ public class GameManager {
         double scaledPlayerHeight = PlayerSpriteConfig.BASE_PLAYER_FRAME_HEIGHT * PlayerSpriteConfig.BASE_PLAYER_FRAME_SCALE;
         double playerX = mainPlayer.getTileX() + scaledPlayerWidth / 2;
 
-        // [SỬA] Cộng thêm INTERACTION_CENTER_Y_OFFSET để tâm tính toán hạ thấp xuống (ngang hông/chân)
+        // Cộng thêm INTERACTION_CENTER_Y_OFFSET để tâm tính toán hạ thấp xuống (ngang hông/chân)
         double playerY = mainPlayer.getTileY() + scaledPlayerHeight / 2 + PlayerSpriteConfig.INTERACTION_CENTER_Y_OFFSET;
 
         // Tọa độ pixel logic của TÂM ô target
@@ -361,7 +363,7 @@ public class GameManager {
         double scaledPlayerHeight = PlayerSpriteConfig.BASE_PLAYER_FRAME_HEIGHT * PlayerSpriteConfig.BASE_PLAYER_FRAME_SCALE;
         double playerX = mainPlayer.getTileX() + scaledPlayerWidth / 2;
 
-        // [SỬA] Cộng thêm INTERACTION_CENTER_Y_OFFSET để tâm quay hướng cũng chính xác
+        // Cộng thêm INTERACTION_CENTER_Y_OFFSET để tâm quay hướng cũng chính xác
         double playerY = mainPlayer.getTileY() + scaledPlayerHeight / 2 + PlayerSpriteConfig.INTERACTION_CENTER_Y_OFFSET;
 
         // Tọa độ pixel logic của TÂM ô target
@@ -415,7 +417,7 @@ public class GameManager {
         // Quay người chơi về hướng ô target
         updatePlayerDirectionTowards(col, row);
 
-        // [SỬA] Sử dụng biến currentMouseWorldX/Y đã được cập nhật chính xác trong updateMouseSelector
+        // Sử dụng biến currentMouseWorldX/Y đã được cập nhật chính xác trong updateMouseSelector
         // Thay vì tính lại từ đầu, ta dùng giá trị đã được đồng bộ với camera mới nhất
         double mouseWorldX = this.currentMouseWorldX;
         double mouseWorldY = this.currentMouseWorldY;
@@ -435,7 +437,6 @@ public class GameManager {
             return; // Đã xử lý xong, không cần gọi processInteraction
         }
 
-        // [QUAN TRỌNG - SỬA LỖI FALL-THROUGH]
         // Kiểm tra xem hành động với động vật có THÀNH CÔNG hay không (state thay đổi sang BUSY, AXE...)
         // Nếu thành công thì không chạy tiếp xuống logic đào đất/trồng cây
         if (mainPlayer.getState() != oldState) {
@@ -490,7 +491,7 @@ public class GameManager {
     }
 
     public void toggleFence(int col, int row) {
-        // [SỬA] Thêm kiểm tra tầm hoạt động bằng Tay (Hand)
+        // Thêm kiểm tra tầm hoạt động bằng Tay (Hand)
         // Truyền null vào currentStack để sử dụng HAND_INTERACTION_RANGE mặc định
         if (!isPlayerInRange(col, row, null)) {
             // Hiển thị thông báo "Xa quá"
@@ -784,7 +785,7 @@ public class GameManager {
     }
 
     /**
-     * [SỬA ĐỔI] Thay vì Reset nóng, hàm này sẽ dọn dẹp và gọi callback để về Main Menu
+     * Thay vì Reset nóng, hàm này sẽ dọn dẹp và gọi callback để về Main Menu
      */
     public void returnToMainMenu() {
         // Hide Game Over UI
@@ -814,7 +815,7 @@ public class GameManager {
         isPaused = false;
     }
 
-    // [MỚI] Setter cho Handler về Main Menu
+    // Setter cho Handler về Main Menu
     public void setOnReturnToMainMenuHandler(Runnable handler) {
         this.onReturnToMainMenuHandler = handler;
     }
@@ -825,6 +826,7 @@ public class GameManager {
 
         // 1. Lưu Player
         Player p = mainPlayer;
+        state.playerName = p.getName(); // Lưu tên người chơi
         state.playerMoney = p.getMoney();
         state.playerXP = p.getCurrentXP();
         state.playerLevel = p.getLevel();
@@ -850,33 +852,30 @@ public class GameManager {
         state.currentDaySeconds = timeManager.getGameTimeSeconds();
         state.currentDay = timeManager.getCurrentDay();
 
-        // 4. Lưu Toàn bộ dữ liệu Map (Cây trồng, Cây tự nhiên, Hàng rào, Đất, Item dưới đất...)
-        // Duyệt qua tất cả TileData đã được tạo ra trong WorldMap
-        for (TileData data : worldMap.getAllTileData()) {
-            // Lấy tọa độ từ key map hơi khó vì key là hash, nhưng ta có thể lấy từ TileData nếu ta lưu col/row trong đó
-            // Hoặc đơn giản là duyệt qua keys của HashMap worldMap.
-            // Tuy nhiên, WorldMap hiện tại lưu key = (col << 32) | row.
-            // Ta cần method để truy xuất col/row từ key, hoặc tốt hơn là thêm col/row vào TileData (đã có trong WorldRenderer loop, nhưng TileData model ko bắt buộc có)
+        // 4. Lưu Thời tiết
+        state.currentWeather = weatherManager.getCurrentWeather();
 
-            // Cách tốt nhất: Cập nhật WorldMap để trả về EntrySet để lấy key (tọa độ)
-            // NHƯNG, do TileData không lưu tọa độ, mà ta cần lưu tọa độ vào file save.
-            // Giải pháp: Ta sẽ dùng một vòng lặp quét qua vùng map khả thi (ví dụ 100x100)
-            // hoặc truy cập trực tiếp vào tileDataMap thông qua getter mới nếu được.
-            // Nhưng tốt nhất là sửa `WorldMap` để có method `getTileDataMap()` trả về HashMap gốc.
-            // Vì tôi đang sửa GameManager, tôi sẽ giả định WorldMap có method `getTileDataMap()` hoặc tôi sẽ dùng EntrySet từ `getAllTileData()` nếu nó trả về Map.
-            // WorldMap.getAllTileData() trả về Collection<TileData>. Mất key!
-
-            // FIX: Tôi sẽ dùng `java.lang.reflect` để lấy map private từ WorldMap nếu cần,
-            // hoặc đơn giản hơn: Vì `WorldMap` được cung cấp trong request trước đó, tôi thấy nó có `tileDataMap`.
-            // Tôi sẽ thêm phương thức `public java.util.Map<Long, TileData> getRawMap() { return tileDataMap; }` vào WorldMap?
-            // Không, tôi chỉ được sửa class tôi viết.
-
-            // GIẢI PHÁP AN TOÀN: Tôi sẽ dùng reflection để lấy `tileDataMap` từ `worldMap` object
-            // để đảm bảo không sửa file WorldMap.java (trừ khi bạn cho phép, nhưng bạn bảo sửa class nào viết class đó).
-            // A, chờ chút, tôi có thể sửa WorldMap.java vì nó nằm trong danh sách file tôi được cung cấp và tôi có thể gửi lại nó.
-            // OK, tôi sẽ sửa WorldMap.java để thêm getter cho map.
+        // 5. Lưu Shop
+        for (ShopSlot slot : shopManager.getCurrentDailyStock()) {
+            state.dailyShopStock.add(new SavedShopSlot(slot.getItemType(), slot.getQuantity(), slot.getDiscountRate()));
         }
 
+        // 6. Lưu Quests
+        for (Quest q : questManager.getActiveQuests()) {
+            SavedQuest sq = new SavedQuest();
+            sq.description = q.getDescription();
+            sq.type = q.getType();
+            sq.targetItem = q.getTargetItem();
+            sq.targetAmount = q.getTargetAmount();
+            sq.currentAmount = q.getCurrentAmount();
+            sq.rewardMoney = q.getRewardMoney();
+            sq.rewardXp = q.getRewardXp();
+            sq.isClaimed = q.isClaimed();
+            state.activeQuests.add(sq);
+        }
+
+        // 7. Lưu Toàn bộ dữ liệu Map (Cây trồng, Cây tự nhiên, Hàng rào, Đất, Item dưới đất...)
+        // Duyệt qua tất cả TileData đã được tạo ra trong WorldMap
         // Vì Java Reflection hơi rườm rà, tôi sẽ dùng cách truy cập `worldMap` thông qua `java.lang.reflect.Field` trong GameManager này luôn cho gọn.
         try {
             java.lang.reflect.Field mapField = WorldMap.class.getDeclaredField("tileDataMap");
@@ -955,6 +954,7 @@ public class GameManager {
         }
 
         // 1. Khôi phục Player
+        if (state.playerName != null) mainPlayer.setName(state.playerName); // Khôi phục tên
         mainPlayer.setMoney(state.playerMoney);
         mainPlayer.setExperience((int)state.playerXP);
         mainPlayer.setLevel(state.playerLevel);
@@ -992,7 +992,22 @@ public class GameManager {
         // 3. Khôi phục Thời gian
         timeManager.setGameTime(state.currentDaySeconds);
 
-        // 4. Khôi phục Map (QUAN TRỌNG)
+        // 4. Khôi phục Thời tiết
+        if (state.currentWeather != null) {
+            weatherManager.setWeather(state.currentWeather);
+        }
+
+        // 5. Khôi phục Shop
+        if (state.dailyShopStock != null && !state.dailyShopStock.isEmpty()) {
+            shopManager.restoreStock(state.dailyShopStock);
+        }
+
+        // 6. Khôi phục Quests
+        if (state.activeQuests != null && !state.activeQuests.isEmpty()) {
+            questManager.restoreQuests(state.activeQuests);
+        }
+
+        // 7. Khôi phục Map (QUAN TRỌNG)
         // Xóa dữ liệu map cũ (bằng cách clear map thông qua reflection hoặc tạo map mới nếu có thể set)
         try {
             java.lang.reflect.Field mapField = WorldMap.class.getDeclaredField("tileDataMap");
@@ -1054,7 +1069,7 @@ public class GameManager {
             System.err.println("Error loading world map tiles!");
         }
 
-        // 3. Refresh lại View và Lấy lại Focus (FIX LỖI KHÔNG TƯƠNG TÁC)
+        // Refresh lại View và Lấy lại Focus (FIX LỖI KHÔNG TƯƠNG TÁC)
         if (mainGameView != null) {
             mainGameView.showTemporaryText("Game Loaded!", state.playerX, state.playerY);
             mainGameView.updateMoneyDisplay(mainPlayer.getMoney());
@@ -1067,12 +1082,11 @@ public class GameManager {
                 mainGameView.updateMap(camera.getWorldOffsetX(), camera.getWorldOffsetY(), true);
             }
 
-            // [QUAN TRỌNG] Request Focus về lại RootPane để nhận input bàn phím
+            // Request Focus về lại RootPane để nhận input bàn phím
             if (mainGameView.getRootPane() != null) {
                 mainGameView.getRootPane().requestFocus();
             }
         }
         System.out.println("Game Loaded Successfully!");
     }
-
 }

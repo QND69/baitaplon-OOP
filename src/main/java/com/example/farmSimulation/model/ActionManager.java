@@ -219,7 +219,7 @@ public class ActionManager {
 
                         // Quest tracking: Chop trees (WOOD)
                         if (questManager != null) {
-                            questManager.onEvent(QuestType.ACTION, ItemType.WOOD, 1); // Mỗi lần chặt cây = 1 tree
+                            questManager.onEvent(QuestType.CHOP_TREE, ItemType.WOOD, 1); // Mỗi lần chặt cây = 1 tree
                         }
                     } else {
                         // Xử lý các item khác (crops) - logic cũ

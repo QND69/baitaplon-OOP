@@ -1,5 +1,6 @@
 package com.example.farmSimulation.model;
 
+import com.example.farmSimulation.config.WeatherConfig;
 import java.io.Serializable;
 import java.util.List;
 import java.util.ArrayList;
@@ -10,6 +11,7 @@ public class GameSaveState implements Serializable {
     private static final long serialVersionUID = 1L;
 
     // 1. Dữ liệu Player
+    public String playerName; // Lưu tên người chơi
     public double playerMoney;
     public double playerXP;
     public int playerLevel;
@@ -30,6 +32,15 @@ public class GameSaveState implements Serializable {
     // 4. Dữ liệu Thế giới (Thay thế SavedCrop bằng SavedTileData bao quát hơn)
     // Lưu danh sách các ô đất có sự thay đổi (không lưu ô GRASS mặc định để nhẹ file)
     public List<SavedTileData> worldTiles = new ArrayList<>();
+
+    // 5. Dữ liệu Thời tiết
+    public WeatherConfig.WeatherType currentWeather;
+
+    // 6. Dữ liệu Shop (Vật phẩm bán trong ngày)
+    public List<SavedShopSlot> dailyShopStock = new ArrayList<>();
+
+    // 7. Dữ liệu Quest (Nhiệm vụ hàng ngày)
+    public List<SavedQuest> activeQuests = new ArrayList<>();
 
     // --- Các class con (Helper) để lưu chi tiết ---
     public static class SavedItemStack implements Serializable {
@@ -55,7 +66,7 @@ public class GameSaveState implements Serializable {
         }
     }
 
-    // [MỚI] Class lưu toàn bộ thông tin của một ô đất (Cây, Rào, Đất, Item...)
+    // Class lưu toàn bộ thông tin của một ô đất (Cây, Rào, Đất, Item...)
     public static class SavedTileData implements Serializable {
         public int col, row;
         public Tile baseType; // GRASS, SOIL, SOIL_WET
@@ -89,5 +100,32 @@ public class GameSaveState implements Serializable {
         public double groundItemOffsetY;
 
         public SavedTileData() {}
+    }
+
+    // Class lưu thông tin một slot trong shop
+    public static class SavedShopSlot implements Serializable {
+        public ItemType itemType;
+        public int quantity;
+        public double discountRate;
+
+        public SavedShopSlot(ItemType itemType, int quantity, double discountRate) {
+            this.itemType = itemType;
+            this.quantity = quantity;
+            this.discountRate = discountRate;
+        }
+    }
+
+    // Class lưu thông tin nhiệm vụ
+    public static class SavedQuest implements Serializable {
+        public String description;
+        public QuestType type;
+        public ItemType targetItem;
+        public int targetAmount;
+        public int currentAmount;
+        public double rewardMoney;
+        public double rewardXp;
+        public boolean isClaimed;
+
+        public SavedQuest() {}
     }
 }

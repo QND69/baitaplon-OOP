@@ -12,7 +12,7 @@ public enum QuestType {
     /**
      * Quest hành động: Thực hiện các hành động như chặt cây
      */
-    ACTION,
+    CHOP_TREE,
 
     /**
      * Quest bán hàng: Bán các item cho shop
