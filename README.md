@@ -62,12 +62,17 @@ Chào mừng bạn đến với game mô phỏng nông trại được viết b�
 
 * Chuột trái:
 
-    * Tương tác với ô đất (cuốc đất, gieo hạt, tưới nước).
-    * Tương tác với NPC (cửa hàng, nhiệm vụ).
-    * Chọn vật phẩm trong túi đồ.
-* Phím số (1-9): Chọn nhanh công cụ hoặc vật phẩm trên thanh hotbar.
-* E: Mở hoặc đóng túi đồ (Inventory) hoặc tương tác tùy ngữ cảnh.
-* ESC: Mở menu cài đặt hoặc tạm dừng game.
+    * Sử dụng công cụ (cuốc đất, gieo hạt, tưới nước, thu hoạch).
+    * Đặt vật phẩm hoặc tương tác với môi trường.
+* Chuột phải:
+
+    * Ăn thức ăn.
+    * Bật hoặc tắt hàng rào (Fence).
+* Phím số (1-9) hoặc cuộn chuột: Chọn công cụ hoặc vật phẩm đang cầm.
+* Q: Thả vật phẩm.
+* B: Mở hoặc đóng cửa hàng thông qua giao diện GUI trên màn hình.
+* J: Mở hoặc đóng bảng nhiệm vụ thông qua giao diện GUI.
+* ESC: Mở menu cài đặt hoặc tạm dừng game (GUI).
 
 ---
 
@@ -78,44 +83,58 @@ Chào mừng bạn đến với game mô phỏng nông trại được viết b�
 Khi bắt đầu game, bạn sẽ vào màn hình tạo nhân vật.
 
 * Nhập tên nhân vật.
-* Chọn giao diện (sprite) nhân vật.
 * Nhấn Start Game để bắt đầu chơi.
 
-### Trồng trọt (cơ bản)
+### Trồng trọt
 
-Để kiếm tiền, người chơi cần trồng và thu hoạch nông sản:
+Để kiếm tiền và hoàn thành nhiệm vụ, người chơi cần trồng và thu hoạch nông sản:
 
-1. Làm đất: Chọn cuốc (Hoe) trên thanh công cụ và nhấp chuột vào ô đất cỏ để xới đất.
-2. Gieo hạt: Mua hạt giống tại cửa hàng, chọn hạt giống và nhấp vào ô đất đã xới.
-3. Tưới nước: Chọn bình tưới (Watering Can) và nhấp vào ô đất đã gieo hạt. Đất sẽ sẫm màu lại.
+1. Làm đất: Dùng cuốc (Hoe) lên ô đất cỏ để xới đất.
+2. Gieo hạt: Cầm hạt giống và nhấp chuột trái vào ô đất đã xới.
+3. Tưới nước: Dùng bình tưới (Watering Can) để tưới cây mỗi ngày. Khi bình hết nước, có thể ra sông để lấy nước.
+4. Bón phân: Dùng phân bón (Fertilizer) cho cây đang phát triển để tăng tốc độ lớn.
+5. Thu hoạch: Khi cây trưởng thành, dùng tay không hoặc liềm (Scythe) để thu hoạch.
+6. Dọn đất:
 
-Lưu ý: Cây cần được tưới nước mỗi ngày để phát triển.
-
-4. Thu hoạch: Khi cây trưởng thành (hình ảnh thay đổi), nhấp chuột để thu hoạch. Nông sản sẽ được đưa vào túi đồ.
+    * Xẻng (Shovel): Nhổ bỏ cây hoặc nông sản để làm trống ô đất.
+    * Rìu (Axe): Chặt cây lấy gỗ (cần chặt nhiều lần).
+7. Xây hàng rào: Cầm gỗ (Wood) và nhấp chuột trái để xây hàng rào bảo vệ khu vực trồng trọt.
 
 ### Cửa hàng
 
-* Tìm NPC bán hàng hoặc khu vực cửa hàng trên bản đồ.
-* Nhấp chuột vào cửa hàng để mở giao diện mua bán.
+* Cửa hàng được truy cập thông qua nút hoặc biểu tượng trên giao diện GUI.
 * Mua: Hạt giống, công cụ và các vật phẩm nâng cấp.
 * Bán: Nông sản đã thu hoạch để nhận vàng (Gold).
 
 ### Chăn nuôi
 
-* Mua gia súc hoặc gia cầm (gà, bò, v.v.) tại cửa hàng chăn nuôi.
-* Cho vật nuôi ăn hằng ngày.
-* Thu thập sản phẩm như trứng hoặc sữa sau một khoảng thời gian nhất định.
+* Mua vật nuôi tại cửa hàng (Shop) và đặt chúng xuống mặt đất.
+* Cho ăn: Cầm thức ăn và nhấp chuột vào vật nuôi.
+* Thu thập sản phẩm:
+
+    * Bò: Dùng xô sữa (Milk Bucket) để lấy sữa.
+    * Cừu: Dùng kéo (Shears) để lấy lông.
+    * Gà: Gà tự động đẻ trứng, nhấp chuột để nhặt.
+* Giết mổ:
+
+    * Dùng rìu hoặc kiếm để giết vật nuôi, rơi ra thịt tương ứng.
 
 ### Hệ thống thời gian và thời tiết
 
 * Thời gian: Game có chu kỳ ngày và đêm. Người chơi cần quản lý thời gian hợp lý.
-* Ngủ: Khi trời tối hoặc năng lượng (Stamina) cạn, hãy về nhà và đi ngủ để hồi phục và chuyển sang ngày mới.
 * Thời tiết: Trời có thể nắng hoặc mưa. Khi trời mưa, cây trồng sẽ được tưới tự động.
 
 ### Nhiệm vụ
 
-* Kiểm tra bảng nhiệm vụ (Quest Board) để nhận thử thách.
-* Hoàn thành nhiệm vụ (ví dụ: thu hoạch 10 củ cà rốt) để nhận phần thưởng.
+* Bảng nhiệm vụ được mở thông qua nút hoặc biểu tượng trên giao diện GUI.
+* Hoàn thành nhiệm vụ (ví dụ: trồng hoặc thu hoạch đủ số lượng yêu cầu) để nhận phần thưởng như vàng, vật phẩm hoặc năng lượng.
+
+---
+
+## Lưu ý quan trọng
+
+* Theo dõi thanh năng lượng (Stamina) của nhân vật.
+* Ăn thức ăn hoặc uống nước tăng lực (Energy Drink) để hồi phục năng lượng khi cần thiết.
 
 ---
 
