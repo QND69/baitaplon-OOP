@@ -6,7 +6,7 @@ import lombok.Setter;
 
 /**
  * Class (Model) đại diện cho một con vật cụ thể trong game.
- * Lưu trữ trạng thái của động vật: vị trí, hướng, tuổi, đói, sản phẩm, v.v.
+ * Lưu trữ trạng thái của động vật: vị trí, hướng, tuổi, độ đói, sản phẩm, v.v.
  */
 @Getter
 @Setter
@@ -14,35 +14,35 @@ public class Animal {
 
     // --- Thông tin cơ bản ---
     private AnimalType type; // Loại động vật
-    private double x; // Tọa độ X thực trên bản đồ (không phải tileX)
-    private double y; // Tọa độ Y thực trên bản đồ (không phải tileY)
+    private double x; // Tọa độ X thực trên bản đồ (lưu ý không phải tọa độ lưới tileX)
+    private double y; // Tọa độ Y thực trên bản đồ (lưu ý không phải tọa độ lưới tileY)
 
-    // [MỚI] Vị trí neo (Anchor) để giới hạn phạm vi di chuyển
+    // Vị trí neo (Anchor) được sử dụng để giới hạn phạm vi di chuyển của con vật
     private double anchorX;
     private double anchorY;
 
     // --- Hướng & Di chuyển ---
     /**
-     * Hướng nhìn: 0 = Down, 1 = Right, 2 = Left, 3 = Up
-     * Lưu ý: Sheet ảnh có đủ 4 hàng, không cần lật ảnh bằng code
+     * Hướng nhìn của con vật: 0 = Xuống, 1 = Phải, 2 = Trái, 3 = Lên
+     * Lưu ý: File ảnh sprite sheet đã có sẵn 4 hàng cho 4 hướng, nên không cần dùng code để lật ảnh
      */
-    private int direction; // 0: Down, 1: Right, 2: Left, 3: Up
+    private int direction; // 0: Xuống, 1: Phải, 2: Trái, 3: Lên
 
     // --- Biến thể Sprite ---
     /**
-     * Dùng cho EGG_ENTITY để lưu trạng thái ngẫu nhiên (Đứng hoặc Nằm).
-     * 0 hoặc 1.
+     * Biến này dùng riêng cho EGG_ENTITY (trứng) để lưu trạng thái ngẫu nhiên (Đứng hoặc Nằm).
+     * Giá trị là 0 hoặc 1.
      */
     private int variant;
 
     // --- Trạng thái ---
-    private int age; // Tuổi thọ (để tính lượng thịt rơi ra)
-    private double hunger; // Chỉ số đói (0-100, 100 = no đói, 0 = chết đói)
-    private boolean isDead; // Cờ đánh dấu đã chết
+    private int age; // Tuổi thọ (dùng để tính toán lượng thịt rơi ra khi giết)
+    private double hunger; // Chỉ số no (0-100, trong đó 100 là no hoàn toàn, 0 là chết đói)
+    private boolean isDead; // Cờ đánh dấu con vật đã chết
 
     // --- Hành động ---
     /**
-     * Hành động hiện tại: IDLE, WALK, EAT
+     * Các trạng thái hành động hiện tại: Đứng yên (IDLE), Đi bộ (WALK), Ăn (EAT)
      */
     public enum Action {
         IDLE,
@@ -52,27 +52,27 @@ public class Animal {
     private Action currentAction;
 
     // --- Sản phẩm ---
-    private long productionTimer; // Thời gian đếm ngược để ra sản phẩm (nanoTime)
-    private boolean hasProduct; // Cờ đánh dấu có sản phẩm sẵn sàng thu hoạch
+    private long productionTimer; // Bộ đếm thời gian ngược để tạo sản phẩm (đơn vị nano giây)
+    private boolean hasProduct; // Cờ đánh dấu sản phẩm đã sẵn sàng để thu hoạch
 
     // --- Sinh trưởng & Logic ---
-    private long spawnTime; // Thời điểm spawn (nanoTime) - để tính tuổi và trưởng thành
-    private long lastDirectionChangeTime; // Thời điểm đổi hướng lần cuối (nanoTime)
-    private long lastHungerUpdateTime; // Thời điểm cập nhật đói lần cuối (nanoTime)
-    private long starvationStartTime; // Thời điểm bắt đầu đói (nanoTime) - để tính thời gian chết đói
+    private long spawnTime; // Thời điểm sinh ra (nano giây) - dùng để tính tuổi và sự trưởng thành
+    private long lastDirectionChangeTime; // Thời điểm lần cuối đổi hướng (nano giây)
+    private long lastHungerUpdateTime; // Thời điểm lần cuối cập nhật chỉ số đói (nano giây)
+    private long starvationStartTime; // Thời điểm bắt đầu bị đói (nano giây) - dùng để tính thời gian dẫn đến chết đói
 
-    // [MỚI] Thời điểm kết thúc hành động hiện tại (để khóa trạng thái)
+    // Thời điểm kết thúc hành động hiện tại (dùng để khóa trạng thái không cho thực hiện hành động khác)
     private long actionEndTime;
 
-    // [MỚI] Timer cho việc sinh sản (Breeding Cooldown) - nanoTime
+    // Bộ đếm thời gian hồi chiêu sinh sản (Breeding Cooldown) - đơn vị nano giây
     private long breedingCooldownTimer;
 
-    // [MỚI - LOGIC SINH SẢN NÂNG CAO]
-    private Animal breedingPartner; // Con vật đang nhắm tới để sinh sản
-    private long matingStartTime; // Thời điểm bắt đầu "tán tỉnh" (đứng yên cạnh nhau), 0 nếu chưa
+    // LOGIC SINH SẢN
+    private Animal breedingPartner; // Đối tượng bạn tình mà con vật đang nhắm tới để sinh sản
+    private long matingStartTime; // Thời điểm bắt đầu quá trình giao phối (đứng yên cạnh nhau), bằng 0 nếu chưa bắt đầu
 
     /**
-     * Constructor để tạo một con vật mới
+     * Hàm khởi tạo để tạo một con vật mới
      * @param type Loại động vật
      * @param x Tọa độ X ban đầu
      * @param y Tọa độ Y ban đầu
@@ -82,13 +82,13 @@ public class Animal {
         this.x = x;
         this.y = y;
 
-        // [MỚI] Gán vị trí neo là vị trí ban đầu
+        // Gán vị trí neo ban đầu bằng chính vị trí xuất hiện
         this.anchorX = x;
         this.anchorY = y;
 
-        this.direction = 0; // Mặc định nhìn xuống
+        this.direction = 0; // Mặc định hướng nhìn xuống
         this.age = 0;
-        this.hunger = com.example.farmSimulation.config.AnimalConfig.MAX_HUNGER; // Bắt đầu no đói
+        this.hunger = com.example.farmSimulation.config.AnimalConfig.MAX_HUNGER; // Bắt đầu ở trạng thái no
         this.isDead = false;
         this.currentAction = Action.IDLE;
         this.productionTimer = 0;
@@ -96,21 +96,21 @@ public class Animal {
         this.spawnTime = System.nanoTime();
         this.lastDirectionChangeTime = System.nanoTime();
         this.lastHungerUpdateTime = System.nanoTime();
-        this.starvationStartTime = 0; // Chưa đói
-        this.actionEndTime = 0; // Sẵn sàng hành động ngay
+        this.starvationStartTime = 0; // Chưa bị đói
+        this.actionEndTime = 0; // Sẵn sàng thực hiện hành động ngay lập tức
 
-        // [SỬA] Kiểm tra config để áp dụng cooldown sinh sản ngay khi spawn
+        // Kiểm tra cấu hình xem có áp dụng thời gian hồi chiêu sinh sản ngay khi vừa sinh ra không
         if (AnimalConfig.ENABLE_BREEDING_COOLDOWN_ON_SPAWN) {
-            // Gán timer bằng thời gian hiện tại -> Logic check sẽ thấy (now - timer) gần bằng 0 < COOLDOWN -> Chưa đẻ được
+            // Gán timer bằng thời gian hiện tại để đảm bảo hiệu số (hiện tại - timer) nhỏ hơn thời gian hồi chiêu -> Chưa thể sinh sản
             this.breedingCooldownTimer = System.nanoTime();
         } else {
-            this.breedingCooldownTimer = 0; // Có thể sinh sản ngay nếu đủ điều kiện (trưởng thành)
+            this.breedingCooldownTimer = 0; // Có thể sinh sản ngay nếu đủ điều kiện (đã trưởng thành)
         }
 
         this.breedingPartner = null;
         this.matingStartTime = 0;
 
-        // Random trạng thái cho trứng (0 hoặc 1)
+        // Chọn ngẫu nhiên trạng thái hiển thị cho trứng (0 hoặc 1)
         if (type == AnimalType.EGG_ENTITY) {
             this.variant = Math.random() < 0.5 ? 0 : 1;
         } else {
@@ -119,52 +119,52 @@ public class Animal {
     }
 
     /**
-     * Kiểm tra xem động vật có đói không
+     * Kiểm tra xem động vật có đang đói không
      */
     public boolean isHungry() {
         return hunger < com.example.farmSimulation.config.AnimalConfig.HUNGER_WARNING_THRESHOLD;
     }
 
     /**
-     * Kiểm tra xem động vật có thể tạo sản phẩm không
+     * Kiểm tra xem động vật có đủ điều kiện tạo sản phẩm không
      */
     public boolean canProduce() {
         return type.canProduce() && !isDead && !isHungry();
     }
 
     /**
-     * Kiểm tra xem động vật có thể trưởng thành không
+     * Kiểm tra xem động vật có thể lớn lên (trưởng thành) không
      */
     public boolean canGrow() {
         return type.canGrow() && !isDead;
     }
 
     /**
-     * Tính tuổi của động vật (tính bằng giây)
+     * Tính tuổi của động vật theo đơn vị giây
      */
     public long getAgeInSeconds() {
         return (System.nanoTime() - spawnTime) / 1_000_000_000L;
     }
 
     /**
-     * Tính số lượng thịt rơi ra khi giết
-     * Chỉ động vật trưởng thành mới có thịt
+     * Tính toán số lượng thịt rơi ra khi con vật bị giết
+     * Chỉ động vật trưởng thành mới rơi thịt
      */
     public int calculateMeatDrop() {
-        // Con non không có thịt
+        // Con non không rơi thịt
         if (isBaby() || type == AnimalType.EGG_ENTITY) {
             return 0;
         }
 
-        // [SỬA] Đã bỏ điều kiện (age < MIN_AGE) để đảm bảo giết là có thịt
-        // Chỉ cần là con trưởng thành (not baby) thì luôn rơi ít nhất 1
+        // Đã loại bỏ điều kiện kiểm tra tuổi tối thiểu để đảm bảo cứ giết là có thịt
+        // Chỉ cần là con trưởng thành (không phải con non) thì luôn rơi ít nhất 1 đơn vị thịt
         int meat = (int) Math.min(age * com.example.farmSimulation.config.AnimalConfig.MEAT_RATE,
                 com.example.farmSimulation.config.AnimalConfig.MAX_MEAT_DROP);
-        return Math.max(meat, 1); // Ít nhất 1 miếng thịt
+        return Math.max(meat, 1); // Đảm bảo rơi ít nhất 1 miếng thịt
     }
 
     /**
-     * Kiểm tra xem động vật có phải con non không
+     * Kiểm tra xem động vật hiện tại có phải là con non không
      */
     public boolean isBaby() {
         return type == AnimalType.BABY_CHICKEN ||
@@ -175,8 +175,8 @@ public class Animal {
     }
 
     /**
-     * Lấy loại thịt tương ứng với động vật
-     * Chỉ động vật trưởng thành mới có thịt
+     * Lấy loại thịt tương ứng với loài động vật
+     * Chỉ trả về loại thịt nếu là động vật trưởng thành
      */
     public ItemType getMeatType() {
         // Con non không có thịt
@@ -194,21 +194,21 @@ public class Animal {
             case SHEEP:
                 return ItemType.MEAT_SHEEP;
             default:
-                return null; // Trứng hoặc loại khác không có thịt
+                return null; // Trứng hoặc các loại khác không có thịt
         }
     }
 
     /**
-     * Kiểm tra xem động vật có đang trong quá trình sinh sản không
-     * (Đang đi tìm bạn tình HOẶC đang đứng tán tỉnh)
+     * Kiểm tra xem động vật có đang trong quá trình sinh sản hay không
+     * (Bao gồm trạng thái đang đi tìm bạn tình HOẶC đang đứng giao phối)
      */
     public boolean isBreeding() {
         return this.breedingPartner != null || this.matingStartTime > 0;
     }
 
     /**
-     * [MỚI] Lấy Scale hiển thị dựa trên loại động vật
-     * Đảm bảo con non được vẽ nhỏ hơn, sử dụng Config thay vì Hardcode.
+     * Lấy tỉ lệ kích thước hiển thị (Scale) dựa trên loại động vật
+     * Đảm bảo con non được vẽ nhỏ hơn, sử dụng giá trị từ Config thay vì gán cứng
      */
     public double getVisualScale() {
         switch (type) {

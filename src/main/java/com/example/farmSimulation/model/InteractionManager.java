@@ -1,35 +1,39 @@
 package com.example.farmSimulation.model;
 
-import com.example.farmSimulation.config.AnimalConfig;
 import com.example.farmSimulation.config.CropConfig;
 import com.example.farmSimulation.config.GameLogicConfig;
 import com.example.farmSimulation.config.HudConfig;
-import com.example.farmSimulation.config.ItemSpriteConfig; // [MỚI]
+import com.example.farmSimulation.config.ItemSpriteConfig;
 import com.example.farmSimulation.config.TreeConfig;
 import com.example.farmSimulation.view.PlayerView;
 import com.example.farmSimulation.config.FenceConfig;
 import com.example.farmSimulation.config.PlayerSpriteConfig;
 import com.example.farmSimulation.config.WorldConfig;
+import lombok.Getter;
+import lombok.Setter;
 
 import java.util.Random;
 
+@Getter
+@Setter
 /**
- * Quản lý logic tương tác dựa trên quy tắc (rule-based).
+ * Quản lý logic tương tác dựa trên quy tắc.
+ * Chịu trách nhiệm xử lý hành động của người chơi lên ô đất, cây trồng và động vật.
  */
 public class InteractionManager {
-    private final ActionManager actionManager; // Để thêm hành động chờ
-    private AnimalManager animalManager; // Quản lý động vật
-    private CollisionManager collisionManager; // Quản lý va chạm
-    private WorldMap worldMap; // Bản đồ thế giới (để đặt item xuống đất)
+    private final ActionManager actionManager; // Quản lý việc thêm hành động vào hàng đợi
+    private AnimalManager animalManager;       // Quản lý danh sách và trạng thái động vật
+    private CollisionManager collisionManager; // Quản lý va chạm vật lý
+    private WorldMap worldMap;                 // Tham chiếu đến dữ liệu bản đồ
 
-    // Record nội bộ để chứa kết quả tương tác
+    // Cấu trúc dữ liệu nội bộ để lưu trữ kết quả tính toán trước khi thực thi
     private record InteractionResult(
-            TileData newTileData,               // Dữ liệu mới của ô đất (null nếu không đổi)
-            PlayerView.PlayerState playerState, // Animation cần chạy
-            long totalDurationMs,                // Tổng thời gian thực hiện
-            boolean consumeItem,                 // Cờ báo hiệu có trừ item không
-            ItemType harvestedItem,              // Item thu hoạch được (để làm hiệu ứng)
-            int harvestedAmount                  // Số lượng item thu hoạch được
+            TileData newTileData,               // Dữ liệu mới của ô đất sau khi tương tác
+            PlayerView.PlayerState playerState, // Trạng thái hoạt ảnh của người chơi cần kích hoạt
+            long totalDurationMs,               // Tổng thời gian thực hiện hành động
+            boolean consumeItem,                // Có tiêu thụ vật phẩm trên tay hay không
+            ItemType harvestedItem,             // Vật phẩm thu hoạch được (để tạo hiệu ứng)
+            int harvestedAmount                 // Số lượng vật phẩm thu hoạch
     ) {
     }
 
@@ -37,104 +41,103 @@ public class InteractionManager {
         this.actionManager = actionManager;
     }
 
-    /**
-     * Set AnimalManager (được gọi từ GameManager)
-     */
-    public void setAnimalManager(AnimalManager animalManager) {
-        this.animalManager = animalManager;
-    }
+    // ==============================================================================================
+    // CÁC HÀM TIỆN ÍCH HỖ TRỢ (UTILITY HELPERS)
+    // ==============================================================================================
 
     /**
-     * Set CollisionManager (được gọi từ GameManager)
-     */
-    public void setCollisionManager(CollisionManager collisionManager) {
-        this.collisionManager = collisionManager;
-    }
-
-    /**
-     * Set WorldMap (được gọi từ GameManager)
-     */
-    public void setWorldMap(WorldMap worldMap) {
-        this.worldMap = worldMap;
-    }
-
-    /**
-     * Kiểm tra xem có thể thêm item vào inventory không
+     * Kiểm tra xem túi đồ của người chơi có còn chỗ trống để thêm vật phẩm không.
+     * Hàm này kiểm tra cả việc cộng dồn vào slot có sẵn và slot trống mới.
      */
     private boolean canAddItem(Player player, ItemType type, int amount) {
         ItemStack[] hotbarItems = player.getHotbarItems();
         int maxStackSize = type.getMaxStackSize();
 
-        // Kiểm tra stack vào ô có sẵn
+        // Kiểm tra khả năng cộng dồn vào các ô đang chứa vật phẩm cùng loại
         for (ItemStack stack : hotbarItems) {
             if (stack != null && stack.getItemType() == type) {
                 if (stack.getQuantity() + amount <= maxStackSize) {
-                    return true; // Có thể stack thêm
+                    return true;
                 }
                 amount -= (maxStackSize - stack.getQuantity());
                 if (amount <= 0) return true;
             }
         }
 
-        // Kiểm tra ô trống
+        // Nếu vẫn còn dư, kiểm tra xem có ô trống hoàn toàn nào không
         for (ItemStack stack : hotbarItems) {
             if (stack == null) {
-                return true; // Có ô trống
+                return true;
             }
         }
 
-        return false; // Inventory đầy
+        return false; // Túi đồ đã đầy
     }
 
-    // [SỬA LỖI] Thay thế logic cũ phụ thuộc vào SECONDS_PER_FRAME
+    /**
+     * Chuyển đổi thời gian từ mili-giây sang số lượng khung hình (frames) dựa trên chuẩn 60 FPS.
+     * Đảm bảo luôn có độ trễ tối thiểu để tránh lỗi hiển thị.
+     */
     private int getDelayInFrames(long durationMs) {
-        // Tính toán số frame dựa trên chuẩn 60 FPS (1 giây = 60 frames)
-        // Công thức: (Số giây) * 60
         int delay = (int) ((durationMs / 1000.0) * 60);
 
-        // CRITICAL: Enforce minimum 10 frames for tree chopping and other timed actions to prevent instant execution
-        // This prevents glitches when deltaTime spikes or game pauses/resumes
-        return Math.max(10, delay); // Đảm bảo ít nhất 10 frames để tránh bug tree biến mất ngay
+        // Đặt mức tối thiểu là 10 frames cho mọi hành động.
+        // Điều này ngăn chặn việc hành động hoàn thành quá nhanh gây lỗi hình ảnh (glitch)
+        // hoặc khi bộ đếm thời gian (deltaTime) không ổn định.
+        return Math.max(10, delay);
     }
 
+    /**
+     * Tạo dữ liệu ô đất mới đã được reset về trạng thái đất khô cơ bản.
+     * Giữ lại vật phẩm đang rơi trên đất (nếu có).
+     */
     private TileData createResetTileData(TileData currentData) {
         TileData newData = new TileData(currentData);
-        newData.setBaseTileType(Tile.SOIL); // Về đất khô
-        newData.setCropData(null);          // Xóa cây
-        newData.setWatered(false);          // Xóa nước
-        newData.setFertilized(false);       // Xóa phân
-        newData.setDryStartTime(System.nanoTime()); // Reset timer khô
-        newData.setFertilizerStartTime(0);  // Reset timer phân
+        newData.setBaseTileType(Tile.SOIL);
+        newData.setCropData(null);
+        newData.setWatered(false);
+        newData.setFertilized(false);
+        newData.setDryStartTime(System.nanoTime());
+        newData.setFertilizerStartTime(0);
         newData.setStatusIndicator(CropStatusIndicator.NONE);
-        // Không xóa groundItem (giữ lại item trên đất)
+        // Lưu ý: Không xóa groundItem để tránh mất vật phẩm đang nằm trên ô đó
         return newData;
     }
 
-    // Helper check va chạm AABB
+    // ==============================================================================================
+    // HỆ THỐNG XỬ LÝ VA CHẠM (COLLISION HANDLING)
+    // ==============================================================================================
+
+    /**
+     * Kiểm tra va chạm giữa hai hình chữ nhật (AABB - Axis Aligned Bounding Box).
+     */
     private boolean aabbIntersect(double minX1, double maxX1, double minY1, double maxY1,
                                   double minX2, double maxX2, double minY2, double maxY2) {
         return minX1 < maxX2 && maxX1 > minX2 && minY1 < maxY2 && maxY1 > minY2;
     }
 
-    // Helper check xem một ô có phải rào đóng không (để tính nối)
+    /**
+     * Kiểm tra xem một ô có chứa hàng rào rắn hay không.
+     * Dùng để tính toán việc nối liền các hàng rào cạnh nhau.
+     */
     private boolean isFenceSolid(int col, int row, WorldMap worldMap) {
         TileData data = worldMap.getTileData(col, row);
         return data.getBaseTileType() == Tile.FENCE && data.getFenceData() != null && data.getFenceData().isSolid();
     }
 
+    /**
+     * Kiểm tra xem người chơi có đang đứng chắn vị trí tương tác hay không.
+     * Tính toán dựa trên hộp va chạm (hitbox) thực tế của người chơi và ô đất/hàng rào.
+     */
     private boolean isPlayerBlocking(int col, int row, Player mainPlayer, WorldMap worldMap) {
-        // 1. Tính Hitbox Người chơi (World Coords) - Tất cả giá trị đã được scale trong PlayerSpriteConfig
+        // Tính toán Hitbox của người chơi trong không gian thế giới
         double pX = mainPlayer.getTileX();
         double pY = mainPlayer.getTileY();
 
-        // Tính kích thước player đã scale
         double scaledPlayerWidth = PlayerSpriteConfig.BASE_PLAYER_FRAME_WIDTH * PlayerSpriteConfig.BASE_PLAYER_FRAME_SCALE;
         double scaledPlayerHeight = PlayerSpriteConfig.BASE_PLAYER_FRAME_HEIGHT * PlayerSpriteConfig.BASE_PLAYER_FRAME_SCALE;
 
-        // Tâm X: giữa chiều rộng đã scale
         double pCenterX = pX + (scaledPlayerWidth / 2.0);
-
-        // Tâm Y: từ đáy player đã scale, trừ đi nửa chiều cao hitbox và padding (tất cả đã scale)
         double pCenterY = pY + scaledPlayerHeight
                 - (PlayerSpriteConfig.COLLISION_BOX_HEIGHT / 2.0)
                 - PlayerSpriteConfig.COLLISION_BOX_BOTTOM_PADDING;
@@ -147,7 +150,7 @@ public class InteractionManager {
         double pMinY = pCenterY - pHalfH;
         double pMaxY = pCenterY + pHalfH;
 
-        // 2. Tính Hitbox Cọc Hàng Rào Trung Tâm của ô ĐANG ĐẶT (Tile C)
+        // Tính toán Hitbox của cọc hàng rào tại vị trí định đặt
         double tileWorldX = col * WorldConfig.TILE_SIZE;
         double tileWorldY = row * WorldConfig.TILE_SIZE;
 
@@ -164,12 +167,12 @@ public class InteractionManager {
         double fMinY = fCenterY - fHalfH;
         double fMaxY = fCenterY + fHalfH;
 
-        // [CHECK 1] Va chạm với Cọc Trung Tâm (Tile C)
+        // Kiểm tra va chạm với cọc trung tâm
         if (aabbIntersect(pMinX, pMaxX, pMinY, pMaxY, fMinX, fMaxX, fMinY, fMaxY)) {
             return true;
         }
 
-        // 3. Tính toán va chạm với các thanh nối (Rails)
+        // Kiểm tra va chạm với các thanh nối (Rails) sang các ô lân cận
         if (isFenceSolid(col - 1, row, worldMap)) {
             if (aabbIntersect(pMinX, pMaxX, pMinY, pMaxY, tileWorldX, fMinX, fMinY, fMaxY)) return true;
             double neighborPostRightX = (tileWorldX - (WorldConfig.TILE_SIZE / 2.0)) + fHalfW;
@@ -194,25 +197,22 @@ public class InteractionManager {
         return false;
     }
 
-    // Helper kiểm tra xem động vật có đang đứng ở vị trí đặt rào không
+    /**
+     * Kiểm tra xem có động vật nào đang đứng tại vị trí ô đất định tương tác không.
+     * Sử dụng vùng va chạm của toàn bộ ô đất (64x64) để đảm bảo không đặt vật thể đè lên động vật.
+     */
     private boolean isAnimalBlocking(int col, int row) {
         if (animalManager == null) return false;
 
-        // [SỬA LỖI] Dùng hitbox CẢ Ô ĐẤT (64x64) để kiểm tra
-        // Thay vì chỉ kiểm tra va chạm với cái cọc rào nhỏ xíu, ta kiểm tra với toàn bộ ô đất.
-        // Điều này đảm bảo dù con vật chỉ mới bước vào mép ô, hoặc quả trứng nằm lệch, 
-        // thì vẫn sẽ bị chặn không cho đặt rào.
         double tileMinX = col * WorldConfig.TILE_SIZE;
         double tileMaxX = tileMinX + WorldConfig.TILE_SIZE;
 
         double tileMinY = row * WorldConfig.TILE_SIZE;
         double tileMaxY = tileMinY + WorldConfig.TILE_SIZE;
 
-        // Duyệt qua tất cả động vật
         for (Animal animal : animalManager.getAnimals()) {
             if (animal.isDead()) continue;
 
-            // Tính hitbox động vật
             double aX = animal.getX();
             double aY = animal.getY();
             double aHalfW = animal.getType().getHitboxWidth() / 2.0;
@@ -223,7 +223,7 @@ public class InteractionManager {
             double aMinY = aY - aHalfH;
             double aMaxY = aY + aHalfH;
 
-            // Kiểm tra va chạm AABB giữa Ô ĐẤT và ĐỘNG VẬT
+            // Kiểm tra va chạm giữa ô đất và động vật
             if (aabbIntersect(tileMinX, tileMaxX, tileMinY, tileMaxY, aMinX, aMaxX, aMinY, aMaxY)) {
                 return true;
             }
@@ -231,8 +231,12 @@ public class InteractionManager {
         return false;
     }
 
+    // ==============================================================================================
+    // LOGIC TÍNH TOÁN TƯƠNG TÁC (CALCULATION LOGIC)
+    // ==============================================================================================
+
     /**
-     * Trừ stamina dựa trên loại tool/item được sử dụng
+     * Trừ thể lực của người chơi dựa trên loại công cụ sử dụng.
      */
     private void consumeStaminaForAction(ItemType itemType, Player player) {
         if (player == null || itemType == null) return;
@@ -259,46 +263,45 @@ public class InteractionManager {
         }
     }
 
+    /**
+     * Xác định kết quả tương tác dựa trên công cụ đang cầm và dữ liệu ô đất hiện tại.
+     * Hàm này chỉ tính toán, không thực hiện thay đổi dữ liệu gốc ngay lập tức.
+     */
     private InteractionResult calculateInteractionResult(ItemStack currentStack, TileData currentData, Player mainPlayer, WorldMap worldMap, int col, int row) {
-        if (currentStack == null) return null; // Tay không
+        if (currentStack == null) return null; // Không cầm gì
 
         ItemType itemType = currentStack.getItemType();
         Tile baseTile = currentData.getBaseTileType();
 
-        // CUỐC (HOE): Cỏ -> Đất
+        // CUỐC (HOE): Chuyển cỏ thành đất trồng
         if (itemType == ItemType.HOE && baseTile == Tile.GRASS) {
             TileData newData = new TileData(currentData);
             newData.setBaseTileType(Tile.SOIL);
-            newData.setDryStartTime(System.nanoTime()); // Bắt đầu đếm thời gian để chuyển về cỏ
+            newData.setDryStartTime(System.nanoTime());
             long duration = (long) GameLogicConfig.HOE_REPETITIONS * GameLogicConfig.HOE_DURATION_PER_REPETITION_MS;
             return new InteractionResult(newData, PlayerView.PlayerState.HOE, duration, true, null, 0);
         }
 
-        // HẠT GIỐNG: Gieo lên đất
+        // HẠT GIỐNG: Gieo trồng
         if (itemType.name().startsWith("SEEDS_")) {
-            // SEEDS_TREE: Trồng trên GRASS
+            // Hạt giống cây ăn quả/gỗ (Tree): Chỉ trồng trên cỏ
             if (itemType == ItemType.SEEDS_TREE) {
                 if (baseTile == Tile.GRASS && currentData.getCropData() == null &&
                         currentData.getTreeData() == null && currentData.getFenceData() == null) {
-                    // Kiểm tra xem người chơi có chặn không
-                    if (isPlayerBlocking(col, row, mainPlayer, worldMap)) {
-                        return null;
-                    }
-                    // Kiểm tra xem động vật có chặn không
-                    if (isAnimalBlocking(col, row)) {
-                        return null;
-                    }
+
+                    if (isPlayerBlocking(col, row, mainPlayer, worldMap)) return null;
+                    if (isAnimalBlocking(col, row)) return null;
 
                     TileData newData = new TileData(currentData);
                     newData.setBaseTileType(Tile.TREE);
-                    TreeData tree = new TreeData(TreeConfig.TREE_SEED_STAGE); // Stage 0 = Seed/Sprout
-                    tree.setLastChopTime(System.nanoTime()); // Set timestamp để tính toán growth ngay lập tức
-                    tree.setRegrowStartTime(0); // Không phải regrow, là trồng mới
+                    TreeData tree = new TreeData(TreeConfig.TREE_SEED_STAGE);
+                    tree.setLastChopTime(System.nanoTime());
+                    tree.setRegrowStartTime(0);
                     newData.setTreeData(tree);
                     return new InteractionResult(newData, PlayerView.PlayerState.PLANT, GameLogicConfig.PLANT_DURATION_MS, true, null, 0);
                 }
             }
-            // Các loại hạt giống cây trồng khác: Gieo lên đất
+            // Các loại hạt giống nông sản: Chỉ trồng trên đất đã cuốc
             else if ((baseTile == Tile.SOIL || baseTile == Tile.SOIL_WET) && currentData.getCropData() == null) {
                 try {
                     CropType type = CropType.valueOf(itemType.name().substring(6));
@@ -315,12 +318,9 @@ public class InteractionManager {
             }
         }
 
-        // TƯỚI NƯỚC
+        // BÌNH TƯỚI NƯỚC
         if (itemType == ItemType.WATERING_CAN) {
             if (currentStack.getCurrentDurability() <= 0) return null;
-
-            // [SỬA ĐỔI] Loại bỏ logic Refill vì bình tưới giờ là consumable (dùng hết thì mất)
-            // if (baseTile == Tile.WATER) { ... } -> DELETE
 
             if (baseTile == Tile.SOIL && currentData.getCropData() != null) {
                 TileData newData = new TileData(currentData);
@@ -333,11 +333,12 @@ public class InteractionManager {
             }
         }
 
-        // BÓN PHÂN
+        // PHÂN BÓN
         if (itemType == ItemType.FERTILIZER) {
             if (currentData.getCropData() != null && !currentData.isFertilized()) {
                 int currentStage = currentData.getCropData().getGrowthStage();
                 int maxStage = currentData.getCropData().getType().getMaxStages();
+                // Chỉ cho phép bón khi cây chưa lớn hẳn và đạt giai đoạn tối thiểu
                 if (currentStage >= CropConfig.MIN_GROWTH_STAGE_FOR_FERTILIZER && currentStage < maxStage - 1) {
                     TileData newData = new TileData(currentData);
                     newData.setFertilized(true);
@@ -349,17 +350,17 @@ public class InteractionManager {
             }
         }
 
-        // XẺNG
+        // XẺNG (SHOVEL): Dọn dẹp
         if (itemType == ItemType.SHOVEL) {
+            // Dọn cây trồng
             if (currentData.getCropData() != null) {
                 TileData newData = createResetTileData(currentData);
                 long duration = (long) GameLogicConfig.SHOVEL_REPETITIONS * GameLogicConfig.SHOVEL_DURATION_PER_REPETITION_MS;
                 return new InteractionResult(newData, PlayerView.PlayerState.SHOVEL, duration, true, null, 0);
             }
-            // XẺNG có thể dùng để xóa hạt giống cây (stage 0) hoặc gốc cây (stump)
+            // Dọn hạt giống cây hoặc gốc cây đã chặt
             if (currentData.getTreeData() != null) {
                 TreeData tree = currentData.getTreeData();
-                // Xóa hạt giống (stage 0) hoặc gốc cây (chopCount > 0)
                 if (tree.getGrowthStage() == TreeConfig.TREE_SEED_STAGE || tree.getChopCount() > 0) {
                     TileData newData = new TileData(currentData);
                     newData.setBaseTileType(Tile.GRASS);
@@ -370,37 +371,28 @@ public class InteractionManager {
             }
         }
 
-        // RÌU (AXE)
+        // RÌU (AXE): Chặt cây hoặc phá hàng rào
         if (itemType == ItemType.AXE) {
             if (currentData.getTreeData() != null && baseTile == Tile.TREE) {
                 TreeData tree = currentData.getTreeData();
                 TileData newData = new TileData(currentData);
                 int woodAmount = 0;
 
-                // [SỬA ĐỔI] Cho phép chặt cây từ Stage 2 trở lên (giai đoạn gần cuối và trưởng thành)
-                // Logic cũ: if (tree.getGrowthStage() == TreeConfig.TREE_MATURE_STAGE && tree.getChopCount() == 0)
+                // Cho phép chặt cây khi đạt giai đoạn phát triển nhất định
                 if (tree.getGrowthStage() >= TreeConfig.TREE_MIN_CHOP_STAGE && tree.getChopCount() == 0) {
-
-                    // Tính lượng gỗ dựa trên stage
-                    // Nếu là Mature (3) -> dùng WOOD_PER_STAGE_2 (2 gỗ)
-                    // Nếu là Stage 2 -> dùng WOOD_PER_STAGE_1 (1 gỗ)
                     woodAmount = (tree.getGrowthStage() == TreeConfig.TREE_MATURE_STAGE) ?
                             TreeConfig.WOOD_PER_STAGE_2 : TreeConfig.WOOD_PER_STAGE_1;
 
-                    // [SỬA LỖI GLITCH] Thay vì sửa trực tiếp vào biến 'tree' (tham chiếu object đang ở WorldMap),
-                    // ta tạo một object TreeData MỚI để chứa trạng thái sau khi chặt.
-                    // Điều này ngăn map cập nhật ngay lập tức khi animation chưa xong.
-                    TreeData newTreeData = new TreeData(tree.getGrowthStage()); // Copy stage hiện tại
-                    newTreeData.setChopCount(1); // Đánh dấu đã chặt (stump)
-                    newTreeData.setRegrowStartTime(System.nanoTime()); // Bắt đầu đếm thời gian mọc lại
-
-                    // Gán object MỚI này vào TileData mới để ActionManager xử lý sau
+                    // Tạo bản sao dữ liệu cây mới để tránh lỗi cập nhật tức thời khi animation chưa xong
+                    TreeData newTreeData = new TreeData(tree.getGrowthStage());
+                    newTreeData.setChopCount(1); // Đánh dấu là đã chặt (gốc cây)
+                    newTreeData.setRegrowStartTime(System.nanoTime());
                     newData.setTreeData(newTreeData);
 
                     long duration = (long) GameLogicConfig.AXE_REPETITIONS * GameLogicConfig.AXE_DURATION_PER_REPETITION_MS;
                     return new InteractionResult(newData, PlayerView.PlayerState.AXE, duration, true, ItemType.WOOD, woodAmount);
                 }
-                // Nếu đã là stump (chopCount > 0), chặt tiếp sẽ xóa hoàn toàn
+                // Nếu đã là gốc cây, chặt tiếp sẽ xóa hoàn toàn
                 else if (tree.getChopCount() > 0) {
                     newData.setBaseTileType(Tile.GRASS);
                     newData.setTreeData(null);
@@ -408,6 +400,7 @@ public class InteractionManager {
                     return new InteractionResult(newData, PlayerView.PlayerState.AXE, duration, true, null, 0);
                 }
             }
+            // Phá hàng rào
             if (currentData.getFenceData() != null && baseTile == Tile.FENCE) {
                 TileData newData = new TileData(currentData);
                 newData.setBaseTileType(Tile.GRASS);
@@ -424,15 +417,8 @@ public class InteractionManager {
                     currentData.getTreeData() == null &&
                     currentData.getFenceData() == null) {
 
-                // Kiểm tra xem người chơi có chặn không
-                if (isPlayerBlocking(col, row, mainPlayer, worldMap)) {
-                    return null;
-                }
-
-                // [MỚI] Kiểm tra xem động vật có chặn không (dùng hàm đã sửa)
-                if (isAnimalBlocking(col, row)) {
-                    return null; // Trả về lỗi để HUD hiển thị
-                }
+                if (isPlayerBlocking(col, row, mainPlayer, worldMap)) return null;
+                if (isAnimalBlocking(col, row)) return null;
 
                 TileData newData = new TileData(currentData);
                 newData.setBaseTileType(Tile.FENCE);
@@ -445,14 +431,16 @@ public class InteractionManager {
         return null;
     }
 
+    /**
+     * Kiểm tra xem cây trồng trên ô đất có thu hoạch được không.
+     */
     private InteractionResult checkHarvest(TileData currentData, Player mainPlayer) {
         CropData crop = currentData.getCropData();
         Random random = new Random();
         if (crop != null && crop.getGrowthStage() >= crop.getType().getMaxStages() - 1) {
             int yield = random.nextInt(crop.getType().getMaxYield() - crop.getType().getMinYield() + 1) + crop.getType().getMinYield();
 
-            // [FIX] Thay vì dùng mainPlayer.addItem (thêm ngay), chỉ dùng canAddItem để kiểm tra
-            // ActionManager sẽ xử lý việc thêm item sau khi animation kết thúc để tránh lỗi x2 item
+            // Chỉ kiểm tra xem có thể thêm vào kho không, chưa thêm ngay lập tức
             boolean success = canAddItem(mainPlayer, crop.getType().getHarvestItem(), yield);
 
             if (!success) {
@@ -465,23 +453,27 @@ public class InteractionManager {
         return null;
     }
 
+    // ==============================================================================================
+    // LOGIC THỰC THI (PUBLIC API)
+    // ==============================================================================================
+
+    /**
+     * Hàm chính xử lý tương tác của người chơi với ô đất.
+     * Được gọi từ GameManager khi người chơi click chuột.
+     */
     public String processInteraction(Player mainPlayer, PlayerView playerView, WorldMap worldMap, int col, int row) {
         ItemStack currentStack = mainPlayer.getCurrentItem();
         TileData currentData = worldMap.getTileData(col, row);
         InteractionResult result = null;
 
-        // --- XỬ LÝ ENERGY_DRINK (Nước tăng lực) ---
+        // 1. Xử lý vật phẩm đặc biệt: Nước tăng lực (Energy Drink)
         if (currentStack != null && currentStack.getItemType() == ItemType.ENERGY_DRINK) {
-            // Hồi phục 50 stamina
             mainPlayer.recoverStamina(50.0);
-
-            // Trừ item
             currentStack.remove(1);
             if (currentStack.getQuantity() <= 0) {
                 mainPlayer.getHotbarItems()[mainPlayer.getSelectedHotbarSlot()] = null;
             }
 
-            // Hiển thị animation
             mainPlayer.setState(PlayerView.PlayerState.BUSY);
             playerView.setState(mainPlayer.getState(), mainPlayer.getDirection());
 
@@ -497,30 +489,23 @@ public class InteractionManager {
             return null; // Thành công
         }
 
-        // Kiểm tra item trên đất (ưu tiên nhặt item trước)
+        // 2. Ưu tiên nhặt vật phẩm đang nằm trên đất
         if (currentData.getGroundItem() != null && currentData.getGroundItemAmount() > 0) {
             ItemType groundItemType = currentData.getGroundItem();
             int groundItemAmount = currentData.getGroundItemAmount();
-
-            // Lấy độ bền từ tile (nếu có, nếu không thì dùng max durability)
             int groundItemDurability = currentData.getGroundItemDurability();
-            // Nếu độ bền <= 0 hoặc item không có độ bền, sẽ dùng max durability khi tạo ItemStack
-            // Nếu có độ bền > 0, dùng độ bền đó
 
-            // Thay vì dùng mainPlayer.addItem (thêm ngay), chỉ dùng canAddItem để kiểm tra
-            // ActionManager sẽ xử lý việc thêm item sau khi animation kết thúc để tránh lỗi x2 item
+            // Chỉ kiểm tra khả năng chứa đồ trước, việc thêm đồ sẽ do ActionManager thực hiện sau
             boolean success = canAddItem(mainPlayer, groundItemType, groundItemAmount);
 
             if (success) {
-                // Xóa item trên đất
+                // Xóa vật phẩm khỏi ô đất
                 TileData newData = new TileData(currentData);
                 newData.setGroundItem(null);
                 newData.setGroundItemAmount(0);
-                newData.setGroundItemDurability(0); // Reset độ bền khi xóa item
-                // Reset offset về mặc định (tùy chọn, nhưng tốt cho lần sau)
+                newData.setGroundItemDurability(0);
                 newData.setDefaultItemOffset();
 
-                // Tạo action để cập nhật tile và hiển thị animation
                 TimedTileAction action = new TimedTileAction(
                         col, row,
                         newData,
@@ -530,20 +515,19 @@ public class InteractionManager {
                 );
                 action.setHarvestedItem(groundItemType);
                 action.setHarvestedAmount(groundItemAmount);
-                // Lưu độ bền để truyền cho ActionManager
                 action.setHarvestedDurability(groundItemDurability);
 
                 mainPlayer.setState(PlayerView.PlayerState.BUSY);
                 playerView.setState(mainPlayer.getState(), mainPlayer.getDirection());
                 actionManager.addPendingAction(action);
 
-                return null; // Thành công
+                return null;
             } else {
-                // Inventory đầy
                 return HudConfig.TEXT_INVENTORY_FULL;
             }
         }
 
+        // 3. Kiểm tra thu hoạch cây trồng
         CropData crop = currentData.getCropData();
         if (crop != null && crop.getGrowthStage() >= crop.getType().getMaxStages() - 1) {
             result = checkHarvest(currentData, mainPlayer);
@@ -552,9 +536,11 @@ public class InteractionManager {
             }
         }
         else {
+            // 4. Nếu không phải thu hoạch, tính toán kết quả tương tác công cụ thông thường
             result = calculateInteractionResult(currentStack, currentData, mainPlayer, worldMap, col, row);
         }
 
+        // Xử lý các trường hợp lỗi hoặc không thể tương tác
         if (result == null) {
             if (currentStack != null) {
                 if (currentStack.getItemType() == ItemType.WATERING_CAN && currentStack.getCurrentDurability() <= 0) {
@@ -569,7 +555,6 @@ public class InteractionManager {
                     if (isPlayerBlocking(col, row, mainPlayer, worldMap)) {
                         return HudConfig.TEXT_PLAYER_BLOCKING;
                     }
-                    // [MỚI] Kiểm tra động vật chặn và trả về thông báo lỗi
                     if (isAnimalBlocking(col, row)) {
                         return HudConfig.CANT_PLACE_TEXT;
                     }
@@ -578,8 +563,8 @@ public class InteractionManager {
             return HudConfig.WRONG_TOOL_TEXT;
         }
 
+        // 5. Nếu tương tác hợp lệ, tạo hành động và đưa vào hàng đợi
         if (result != null) {
-            // Trừ stamina khi bắt đầu hành động
             if (currentStack != null) {
                 consumeStaminaForAction(currentStack.getItemType(), mainPlayer);
             }
@@ -607,46 +592,44 @@ public class InteractionManager {
         return HudConfig.WRONG_TOOL_TEXT;
     }
 
+    /**
+     * Hàm chính xử lý tương tác với động vật.
+     * Bao gồm: Nhặt trứng, đặt vật nuôi/trứng mới, cho ăn, thu hoạch sản phẩm, tấn công.
+     */
     public String processAnimalInteraction(Player mainPlayer, PlayerView playerView, double worldX, double worldY) {
         if (animalManager == null) return null;
 
-        // BƯỚC 0 (Ưu tiên Nhặt trứng): Kiểm tra trứng trước (cho phép cả tay không)
+        // --- BƯỚC 1: Ưu tiên nhặt trứng ---
+        // Cho phép nhặt kể cả khi tay không, trừ khi đang cầm các vật phẩm đặt (để tránh xung đột)
         Animal animalAtPosition = animalManager.getAnimalAt(worldX, worldY, WorldConfig.TILE_SIZE);
         if (animalAtPosition != null && animalAtPosition.getType() == AnimalType.EGG_ENTITY && !animalAtPosition.isDead()) {
-            // Có trứng tại vị trí này, xử lý nhặt trứng
             ItemStack currentStack = mainPlayer.getCurrentItem();
             ItemType itemType = currentStack != null ? currentStack.getItemType() : null;
 
-            // [FIX QUAN TRỌNG] Nếu đang cầm item động vật, trứng, hoặc gỗ thì KHÔNG nhặt trứng
-            // Để cho logic đặt vật nuôi/rào bên dưới chạy
-            // Nếu itemType == null (tay không) hoặc item khác -> Cho phép nhặt trứng
+            // Nếu đang cầm vật nuôi, trứng khác hoặc gỗ thì bỏ qua bước này để xử lý logic đặt ở dưới
             if (itemType != ItemType.ITEM_COW && itemType != ItemType.ITEM_CHICKEN &&
                     itemType != ItemType.ITEM_PIG && itemType != ItemType.ITEM_SHEEP &&
                     itemType != ItemType.EGG && itemType != ItemType.WOOD) {
-                // Tay không (itemType == null) hoặc item khác -> Cho phép nhặt trứng
-                // Kiểm tra inventory có thể add item không
+
                 if (!canAddItem(mainPlayer, ItemType.EGG, 1)) {
                     return HudConfig.TEXT_INVENTORY_FULL;
                 }
 
-                // Tính col/row từ tọa độ trứng để hiển thị animation
                 int col = (int) Math.floor(animalAtPosition.getX() / WorldConfig.TILE_SIZE);
                 int row = (int) Math.floor(animalAtPosition.getY() / WorldConfig.TILE_SIZE);
 
-                // Lưu tọa độ động vật để xóa sau khi action hoàn thành (KHÔNG xóa ngay)
+                // Lưu vị trí để xóa hình ảnh sau
                 double animalWorldX = animalAtPosition.getX();
                 double animalWorldY = animalAtPosition.getY();
 
-                // Set player state thành BUSY
                 mainPlayer.setState(PlayerView.PlayerState.BUSY);
                 playerView.setState(mainPlayer.getState(), mainPlayer.getDirection());
 
-                // Tạo action để xóa động vật, thêm item và hiển thị animation
                 TimedTileAction action = new TimedTileAction(
                         col, row,
-                        null, // Không thay đổi tile
+                        null,
                         getDelayInFrames(GameLogicConfig.GENERIC_ACTION_DURATION_MS),
-                        false, // Không tiêu thụ item
+                        false,
                         mainPlayer.getSelectedHotbarSlot()
                 );
                 action.setHarvestedItem(ItemType.EGG);
@@ -655,70 +638,52 @@ public class InteractionManager {
                 action.setAnimalWorldY(animalWorldY);
                 actionManager.addPendingAction(action);
 
-                return null; // Thành công
+                return null;
             }
         }
 
-        // BƯỚC 1 (Ưu tiên Đặt): Kiểm tra Item trên tay người chơi trước
+        // --- BƯỚC 2: Ưu tiên đặt vật nuôi/trứng từ kho ---
         ItemStack currentStack = mainPlayer.getCurrentItem();
         if (currentStack == null) {
-            // Không có item trên tay, không thể đặt hoặc tương tác (trừ nhặt trứng đã xử lý ở trên)
             return null;
         }
 
         ItemType itemType = currentStack.getItemType();
-
-        // Kiểm tra xem có phải hành động đặt không
         AnimalType animalTypeToPlace = null;
-        if (itemType == ItemType.ITEM_COW) {
-            animalTypeToPlace = AnimalType.COW;
-        } else if (itemType == ItemType.ITEM_CHICKEN) {
-            animalTypeToPlace = AnimalType.CHICKEN;
-        } else if (itemType == ItemType.ITEM_PIG) {
-            animalTypeToPlace = AnimalType.PIG;
-        } else if (itemType == ItemType.ITEM_SHEEP) {
-            animalTypeToPlace = AnimalType.SHEEP;
-        } else if (itemType == ItemType.EGG) {
-            animalTypeToPlace = AnimalType.EGG_ENTITY;
-        }
+        if (itemType == ItemType.ITEM_COW) animalTypeToPlace = AnimalType.COW;
+        else if (itemType == ItemType.ITEM_CHICKEN) animalTypeToPlace = AnimalType.CHICKEN;
+        else if (itemType == ItemType.ITEM_PIG) animalTypeToPlace = AnimalType.PIG;
+        else if (itemType == ItemType.ITEM_SHEEP) animalTypeToPlace = AnimalType.SHEEP;
+        else if (itemType == ItemType.EGG) animalTypeToPlace = AnimalType.EGG_ENTITY;
 
-        // Nếu là hành động đặt vật nuôi
         if (animalTypeToPlace != null) {
-            // Kiểm tra va chạm tại vị trí đặt
-            if (collisionManager == null || worldMap == null) {
-                return null; // Không có CollisionManager, không thể kiểm tra
-            }
+            if (collisionManager == null || worldMap == null) return null;
 
-            // [SỬA] Kiểm tra logic Tile: Không được đặt lên ô đang là Cây hoặc Rào
             int tileCol = (int) Math.floor(worldX / WorldConfig.TILE_SIZE);
             int tileRow = (int) Math.floor(worldY / WorldConfig.TILE_SIZE);
             TileData tileData = worldMap.getTileData(tileCol, tileRow);
 
-            // 1. Kiểm tra Cây (Tree)
+            // Kiểm tra không được đặt lên cây
             if (tileData.getBaseTileType() == Tile.TREE && tileData.getTreeData() != null) {
                 return HudConfig.CANT_PLACE_TEXT;
             }
 
-            // 2. Kiểm tra Hàng rào (Fence)
+            // Kiểm tra không được đặt lên rào chắn
             if (tileData.getBaseTileType() == Tile.FENCE &&
                     tileData.getFenceData() != null &&
                     tileData.getFenceData().isSolid()) {
                 return HudConfig.CANT_PLACE_TEXT;
             }
 
-            // [SỬA] Kiểm tra Collision vật lý (Connections/Rails của rào và Hitbox cây)
-            // Sử dụng kích thước thật của động vật để đảm bảo không bị kẹt vào rào/cây
+            // Kiểm tra va chạm vật lý với môi trường xung quanh
             double checkWidth = animalTypeToPlace.getHitboxWidth();
             double checkHeight = animalTypeToPlace.getHitboxHeight();
 
-            // checkCollision trong CollisionManager đã xử lý logic các thanh nối (Rails) của hàng rào
             if (collisionManager.checkCollision(worldX, worldY, checkWidth, checkHeight)) {
-                return HudConfig.CANT_PLACE_TEXT; // Vị trí bị chặn bởi Rào/Cây/Nước
+                return HudConfig.CANT_PLACE_TEXT;
             }
 
-            // [ĐÃ SỬA LẠI LOGIC] Kiểm tra va chạm Hitbox với các động vật khác
-            // Thay vì kiểm tra theo Tile (getAnimalAt), ta kiểm tra giao nhau giữa các hình chữ nhật (AABB)
-            // Để cho phép đặt nhiều con trên cùng 1 tile miễn là không đè lên nhau
+            // Kiểm tra va chạm với các động vật khác (tránh đặt đè lên trứng)
             double newMinX = worldX - checkWidth / 2.0;
             double newMaxX = worldX + checkWidth / 2.0;
             double newMinY = worldY - checkHeight / 2.0;
@@ -735,34 +700,25 @@ public class InteractionManager {
                 double exMaxY = existing.getY() + exH / 2.0;
 
                 if (aabbIntersect(newMinX, newMaxX, newMinY, newMaxY, exMinX, exMaxX, exMinY, exMaxY)) {
-                    // [PHƯƠNG ÁN 3]: Cho phép đặt đè lên nhau, NHƯNG KHÔNG ĐƯỢC ĐÈ LÊN TRỨNG
-                    // Nếu vật đang nằm đó là TRỨNG -> Chặn (để không bị che mất trứng)
+                    // Không cho phép đặt đè lên trứng để tránh che khuất
                     if (existing.getType() == AnimalType.EGG_ENTITY) {
                         return HudConfig.CANT_PLACE_TEXT;
                     }
-
-                    // Nếu vật đang đặt là TRỨNG, cũng không nên cho đặt đè lên con khác (tùy chọn, ở đây giữ logic đơn giản là cấm đặt đè lên trứng thôi)
-                    // Nếu muốn chặt chẽ: if (animalTypeToPlace == AnimalType.EGG_ENTITY) return HudConfig.CANT_PLACE_TEXT;
-
-                    // Nếu không phải trứng, cho phép đặt chồng lên (Soft Collision) -> Không return lỗi
                 }
             }
 
-            // Vị trí hợp lệ -> Tạo Animal mới, thêm vào AnimalManager
+            // Vị trí hợp lệ -> Tạo động vật mới
             Animal newAnimal = new Animal(animalTypeToPlace, worldX, worldY);
             animalManager.addAnimal(newAnimal);
 
-            // Trừ item
             currentStack.remove(1);
             if (currentStack.getQuantity() <= 0) {
                 mainPlayer.getHotbarItems()[mainPlayer.getSelectedHotbarSlot()] = null;
             }
 
-            // Set player state thành BUSY
             mainPlayer.setState(PlayerView.PlayerState.BUSY);
             playerView.setState(mainPlayer.getState(), mainPlayer.getDirection());
 
-            // Thêm hành động chờ
             TimedTileAction action = new TimedTileAction(
                     -1, -1,
                     null,
@@ -772,33 +728,26 @@ public class InteractionManager {
             );
             actionManager.addPendingAction(action);
 
-            return null; // Thành công
+            return null;
         }
 
-        // Bước 3 (Tương tác): Tìm động vật để tương tác
+        // --- BƯỚC 3: Tương tác với động vật (Cho ăn, Thu hoạch, Tấn công) ---
         Animal animal = animalManager.getAnimalAt(worldX, worldY, WorldConfig.TILE_SIZE);
         if (animal == null || animal.isDead()) {
             return null;
         }
 
-        // [MỚI] CHẶN TƯƠNG TÁC KHI ĐANG SINH SẢN
-        // Nếu động vật đang bận sinh sản, không cho làm gì cả (trừ khi bạn muốn cho phép giết)
-        // Ở đây tôi chặn tất cả để tránh lỗi logic
+        // Chặn tương tác nếu động vật đang sinh sản
         if (animal.isBreeding()) {
-            // Có thể trả về thông báo "Animal is busy" nếu muốn, hoặc null để lờ đi
-            // Return null ở đây nghĩa là click vào không có tác dụng gì
             return null;
         }
 
-        // --- CHO ĂN ---
+        // 3.1 Cho ăn
         if (animal.getType().acceptsFood(itemType)) {
-            // SUPER_FEED có thể cho mọi động vật (đã có trong acceptsFood của từng loại)
             animalManager.feedAnimal(animal);
 
-            // [SỬA] Thay decreaseQuantity thành remove
             currentStack.remove(1);
             if (currentStack.getQuantity() <= 0) {
-                // [SỬA] Gán null trực tiếp
                 mainPlayer.getHotbarItems()[mainPlayer.getSelectedHotbarSlot()] = null;
             }
 
@@ -817,18 +766,15 @@ public class InteractionManager {
             return null;
         }
 
-        // --- THU HOẠCH SẢN PHẨM ---
-        // Bò: MILK_BUCKET
+        // 3.2 Thu hoạch sữa (Bò)
         if (itemType == ItemType.MILK_BUCKET && animal.getType() == AnimalType.COW && animal.isHasProduct()) {
             animalManager.harvestProduct(animal);
 
-            // [SỬA] Thay decreaseQuantity thành remove
             currentStack.remove(1);
             if (currentStack.getQuantity() <= 0) {
                 mainPlayer.getHotbarItems()[mainPlayer.getSelectedHotbarSlot()] = null;
             }
 
-            // [SỬA] Gọi addItem đúng cú pháp
             if (!mainPlayer.addItem(ItemType.FULL_MILK_BUCKET, 1)) {
                 mainPlayer.addItem(ItemType.MILK, 1);
             }
@@ -848,7 +794,7 @@ public class InteractionManager {
             return null;
         }
 
-        // Cừu: SHEARS
+        // 3.3 Thu hoạch lông (Cừu)
         if (itemType == ItemType.SHEARS && animal.getType() == AnimalType.SHEEP && animal.isHasProduct()) {
             if (currentStack.getCurrentDurability() <= 0) {
                 return HudConfig.TEXT_WATER_EMPTY;
@@ -861,7 +807,6 @@ public class InteractionManager {
                 mainPlayer.getHotbarItems()[mainPlayer.getSelectedHotbarSlot()] = null;
             }
 
-            // [SỬA] Gọi addItem đúng cú pháp
             mainPlayer.addItem(ItemType.WOOL, 1);
 
             mainPlayer.setState(PlayerView.PlayerState.BUSY);
@@ -879,39 +824,32 @@ public class InteractionManager {
             return null;
         }
 
-        // Gà: Nhặt trứng
+        // 3.4 Nhặt trứng (Gà) - Logic phụ trợ nếu bước 1 bị bỏ qua
         if (animal.getType() == AnimalType.EGG_ENTITY) {
-            // [FIX QUAN TRỌNG] Nếu đang cầm item động vật, trứng, hoặc gỗ thì KHÔNG nhặt trứng
-            // Để cho logic đặt vật nuôi/rào bên dưới chạy
+            // Đảm bảo không nhặt khi đang cầm công cụ xây dựng
             if (itemType == ItemType.ITEM_COW || itemType == ItemType.ITEM_CHICKEN ||
                     itemType == ItemType.ITEM_PIG || itemType == ItemType.ITEM_SHEEP ||
                     itemType == ItemType.EGG || itemType == ItemType.WOOD) {
                 return null;
             }
 
-            // Kiểm tra inventory có thể add item không
             if (!canAddItem(mainPlayer, ItemType.EGG, 1)) {
                 return HudConfig.TEXT_INVENTORY_FULL;
             }
 
-            // Tính col/row từ tọa độ trứng để hiển thị animation
             int col = (int) Math.floor(animal.getX() / WorldConfig.TILE_SIZE);
             int row = (int) Math.floor(animal.getY() / WorldConfig.TILE_SIZE);
-
-            // Lưu tọa độ động vật để xóa sau khi action hoàn thành (KHÔNG xóa ngay)
             double animalWorldX = animal.getX();
             double animalWorldY = animal.getY();
 
-            // Set player state thành BUSY
             mainPlayer.setState(PlayerView.PlayerState.BUSY);
             playerView.setState(mainPlayer.getState(), mainPlayer.getDirection());
 
-            // Tạo action để xóa động vật, thêm item và hiển thị animation
             TimedTileAction action = new TimedTileAction(
                     col, row,
-                    null, // Không thay đổi tile
+                    null,
                     getDelayInFrames(GameLogicConfig.GENERIC_ACTION_DURATION_MS),
-                    false, // Không tiêu thụ item
+                    false,
                     mainPlayer.getSelectedHotbarSlot()
             );
             action.setHarvestedItem(ItemType.EGG);
@@ -920,63 +858,52 @@ public class InteractionManager {
             action.setAnimalWorldY(animalWorldY);
             actionManager.addPendingAction(action);
 
-            return null; // Thành công
+            return null;
         }
 
-        // --- TẤN CÔNG (GIẾT) ---
+        // 3.5 Tấn công (Giết thịt)
         if (itemType == ItemType.AXE || itemType == ItemType.SWORD ||
                 (itemType.hasDurability() && itemType != ItemType.SHEARS && itemType != ItemType.MILK_BUCKET)) {
-            // Lưu tọa độ động vật trước khi giết (để đặt thịt đúng vị trí)
+
             double animalX = animal.getX();
             double animalY = animal.getY();
 
-            // Giết động vật ngay (set isDead = true)
             int meatAmount = animalManager.killAnimal(animal);
 
             if (meatAmount > 0 && worldMap != null) {
-                // Lấy loại thịt tương ứng với động vật
                 ItemType meatType = animal.getMeatType();
                 if (meatType != null) {
-                    // [FIX LỆCH TỌA ĐỘ THỊT]
-                    // Thay vì lấy tọa độ chân (Y), ta lấy tọa độ TÂM của hình ảnh động vật
-                    // Động vật vẽ từ chân lên trên, nên tâm Y = chân - (chiều cao / 2)
+                    // Tính toán vị trí tâm hình ảnh động vật để đặt thịt rơi ra đúng chỗ
                     double visualCenterY = animalY - (animal.getType().getSpriteSize() / 2.0);
 
-                    // Tính toán ô chứa (Tile) LÝ TƯỞNG
                     int idealTileCol = (int) Math.floor(animalX / WorldConfig.TILE_SIZE);
                     int idealTileRow = (int) Math.floor(visualCenterY / WorldConfig.TILE_SIZE);
 
-                    // Tính toán OFFSET GỐC (độ lệch so với góc trên trái của ô lý tưởng)
                     double targetItemX = animalX - (ItemSpriteConfig.ITEM_SPRITE_WIDTH / 2.0);
                     double targetItemY = visualCenterY - (ItemSpriteConfig.ITEM_SPRITE_HEIGHT / 2.0);
 
                     double originalOffsetX = targetItemX - (idealTileCol * WorldConfig.TILE_SIZE);
                     double originalOffsetY = targetItemY - (idealTileRow * WorldConfig.TILE_SIZE);
 
-                    // [SỬA LỖI OVERWRITE] Tìm ô trống xung quanh để đặt thịt
-                    // Thay vì đặt đè lên, ta tìm ô trống trong bán kính
+                    // Tìm ô trống xung quanh để đặt thịt rơi ra, tránh ghi đè vật phẩm cũ
                     int searchRadius = GameLogicConfig.ITEM_DROP_SEARCH_RADIUS;
                     int finalCol = -1;
                     int finalRow = -1;
                     boolean foundSpot = false;
 
-                    // 1. Kiểm tra ô lý tưởng trước
                     TileData idealTile = worldMap.getTileData(idealTileCol, idealTileRow);
                     if (idealTile.getGroundItem() == null) {
                         finalCol = idealTileCol;
                         finalRow = idealTileRow;
                         foundSpot = true;
                     } else if (idealTile.getGroundItem() == meatType) {
-                        // Trùng loại -> Cộng dồn
                         finalCol = idealTileCol;
                         finalRow = idealTileRow;
                         foundSpot = true;
                     } else {
-                        // Ô lý tưởng đã có item khác -> Tìm xung quanh
                         for (int r = idealTileRow - searchRadius; r <= idealTileRow + searchRadius; r++) {
                             for (int c = idealTileCol - searchRadius; c <= idealTileCol + searchRadius; c++) {
-                                if (r == idealTileRow && c == idealTileCol) continue; // Đã check rồi
-
+                                if (r == idealTileRow && c == idealTileCol) continue;
                                 TileData checkTile = worldMap.getTileData(c, r);
                                 if (checkTile.getGroundItem() == null) {
                                     finalCol = c;
@@ -989,31 +916,26 @@ public class InteractionManager {
                         }
                     }
 
-                    // Nếu vẫn không tìm thấy chỗ (foundSpot = false) -> Bắt buộc phải đè lên ô lý tưởng (Fallback)
                     if (!foundSpot) {
                         finalCol = idealTileCol;
                         finalRow = idealTileRow;
                     }
 
-                    // Đặt item vào ô đã chọn
                     TileData finalTile = worldMap.getTileData(finalCol, finalRow);
 
-                    // Nếu cộng dồn
                     if (finalTile.getGroundItem() == meatType) {
+                        // Cộng dồn nếu cùng loại
                         finalTile.setGroundItemAmount(finalTile.getGroundItemAmount() + meatAmount);
-                        // Giữ nguyên offset cũ của item đang có
                     } else {
-                        // Đặt mới hoặc đè
+                        // Đặt mới
                         finalTile.setGroundItem(meatType);
                         finalTile.setGroundItemAmount(meatAmount);
 
-                        // Nếu đặt đúng ô lý tưởng -> Dùng offset gốc (để item nằm đúng chỗ động vật chết)
                         if (finalCol == idealTileCol && finalRow == idealTileRow) {
                             finalTile.setGroundItemOffsetX(originalOffsetX);
                             finalTile.setGroundItemOffsetY(originalOffsetY);
                         } else {
-                            // [SỬA] Nếu phải đặt sang ô bên cạnh -> Dùng offset mặc định cộng thêm ngẫu nhiên (scatter)
-                            // Để không bị "dính chặt" vào giữa ô
+                            // Nếu đặt lệch sang ô khác, thêm một chút ngẫu nhiên để trông tự nhiên hơn
                             finalTile.setDefaultItemOffset();
                             double scatter = GameLogicConfig.ITEM_DROP_SCATTER_RANGE;
                             double jitterX = (Math.random() - 0.5) * scatter;
@@ -1022,16 +944,13 @@ public class InteractionManager {
                             finalTile.setGroundItemOffsetY(finalTile.getGroundItemOffsetY() + jitterY);
                         }
                     }
-
                     worldMap.setTileData(finalCol, finalRow, finalTile);
                 }
             }
 
-            // Sử dụng animation ATTACK từ player sheet thay vì AXE
             mainPlayer.setState(PlayerView.PlayerState.ATTACK);
             playerView.setState(mainPlayer.getState(), mainPlayer.getDirection());
 
-            // Tính thời gian dựa trên ATTACK animation (ATTACK_SPEED * ATTACK_FRAMES)
             long attackDuration = PlayerSpriteConfig.ATTACK_SPEED * PlayerSpriteConfig.ATTACK_FRAMES;
             TimedTileAction action = new TimedTileAction(
                     -1, -1,

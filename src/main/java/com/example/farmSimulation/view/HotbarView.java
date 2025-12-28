@@ -1,8 +1,6 @@
 package com.example.farmSimulation.view;
 
-import com.example.farmSimulation.config.AssetPaths;
 import com.example.farmSimulation.config.HotbarConfig;
-import com.example.farmSimulation.config.ItemSpriteConfig;
 import com.example.farmSimulation.config.WindowConfig;
 import com.example.farmSimulation.model.CropType;
 import com.example.farmSimulation.model.ItemStack;
@@ -13,8 +11,6 @@ import javafx.geometry.Point2D;
 import javafx.geometry.Pos;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
-import javafx.scene.image.PixelReader;
-import javafx.scene.image.WritableImage;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.StackPane;
 import javafx.scene.shape.Rectangle;
@@ -26,26 +22,56 @@ import java.util.EnumMap;
 import java.util.Map;
 import java.util.function.BiConsumer;
 
+/**
+ * Lớp giao diện quản lý thanh công cụ (Hotbar) của người chơi.
+ * Chịu trách nhiệm hiển thị các ô chứa vật phẩm, xử lý sự kiện kéo thả,
+ * và cập nhật giao diện dựa trên dữ liệu từ Player.
+ */
 public class HotbarView extends Pane {
+
+    // ==============================================================================================
+    // KHAI BÁO BIẾN VÀ CẤU HÌNH (FIELDS)
+    // ==============================================================================================
 
     private final Player player;
     private final ImageManager assetManager;
 
-    // Mỗi slot là một StackPane để chứa (Nền, Icon, Số thứ tự, Số lượng)
+    // Mảng chứa các ô slot, mỗi slot là một StackPane để xếp chồng các lớp (Nền, Icon, Text...)
     private final StackPane[] slots;
-    private final Rectangle slotSelector; // Ô chọn
-    private final Map<ItemType, Image> itemTextureMap; // Map ItemType -> Image
-    private final Text itemNameLabel; // Label hiển thị tên item đang cầm (ở giữa HUD, phía trên hotbar)
 
-    // Biến lưu trữ scale hiện tại của hotbar (được cập nhật từ Settings)
+    // Hình chữ nhật hiển thị ô đang được chọn
+    private final Rectangle slotSelector;
+
+    // Bản đồ lưu trữ hình ảnh texture cho từng loại vật phẩm để truy xuất nhanh
+    private final Map<ItemType, Image> itemTextureMap;
+
+    // Nhãn hiển thị tên vật phẩm đang cầm trên tay (nằm giữa HUD, phía trên hotbar)
+    private final Text itemNameLabel;
+
+    // Biến lưu trữ tỉ lệ thu phóng hiện tại của hotbar (cập nhật từ Cài đặt)
     private double currentScale = HotbarConfig.DEFAULT_HOTBAR_SCALE;
 
-    // Biến cho Drag & Drop
-    private BiConsumer<Integer, Integer> onSwapListener; // Callback gọi về GameManager (slotA, slotB)
-    private java.util.function.BiFunction<Integer, javafx.geometry.Point2D, Boolean> onItemDropListener; // Callback cho drop item (slotIndex, scenePoint) -> isTrash
-    private ImageView ghostIcon; // Icon bay theo chuột
-    private int dragSourceIndex = -1; // Vị trí bắt đầu kéo
-    private double mouseAnchorX, mouseAnchorY; // Điểm neo khi bắt đầu kéo để tính offset
+    // --- Các biến phục vụ chức năng Kéo và Thả (Drag & Drop) ---
+
+    // Hàm gọi lại để xử lý logic hoán đổi vị trí trong GameManager (tham số: slotA, slotB)
+    private BiConsumer<Integer, Integer> onSwapListener;
+
+    // Hàm gọi lại để xử lý logic thả vật phẩm ra ngoài hoặc vào thùng rác
+    // Tham số: slotIndex, tọa độ thả. Trả về: true nếu thả vào thùng rác
+    private java.util.function.BiFunction<Integer, javafx.geometry.Point2D, Boolean> onItemDropListener;
+
+    // Biểu tượng mờ di chuyển theo chuột khi kéo
+    private ImageView ghostIcon;
+
+    // Chỉ số slot bắt đầu kéo (-1 là không kéo)
+    private int dragSourceIndex = -1;
+
+    // Tọa độ neo chuột để tính toán độ lệch khi kéo hình ảnh
+    private double mouseAnchorX, mouseAnchorY;
+
+    // ==============================================================================================
+    // KHỞI TẠO (CONSTRUCTOR)
+    // ==============================================================================================
 
     public HotbarView(Player player, ImageManager assetManager) {
         this.player = player;
@@ -53,155 +79,157 @@ public class HotbarView extends Pane {
         this.itemTextureMap = new EnumMap<>(ItemType.class);
         this.slots = new StackPane[HotbarConfig.HOTBAR_SLOT_COUNT];
 
-        // Khởi tạo Ghost Icon (ẩn)
+        // Khởi tạo Ghost Icon (mặc định ẩn và không nhận sự kiện chuột)
         this.ghostIcon = new ImageView();
-        this.ghostIcon.setMouseTransparent(true); // Không cản sự kiện chuột
+        this.ghostIcon.setMouseTransparent(true);
         this.ghostIcon.setVisible(false);
-        // Ghost icon phải được thêm vào Pane cuối cùng để nằm trên cùng
-        // Nhưng sẽ thêm sau khi vòng lặp slot chạy xong
+        // Ghost icon sẽ được thêm vào Pane cuối cùng để đảm bảo nó luôn nằm trên các thành phần khác
 
-        // Tải ảnh cho từng công cụ
+        // Tải trước hình ảnh cho các vật phẩm
         loadItemTextures(assetManager);
 
-        // Khởi tạo các slot
+        // Khởi tạo các ô slot
         for (int i = 0; i < HotbarConfig.HOTBAR_SLOT_COUNT; i++) {
             StackPane slot = new StackPane();
-            slot.setAlignment(Pos.CENTER); // Mặc định căn giữa cho icon
+            slot.setAlignment(Pos.CENTER); // Căn giữa nội dung trong slot
 
-            // 0. Nền
+            // 1. Lớp Nền
             Rectangle bg = new Rectangle();
             bg.setFill(HotbarConfig.SLOT_BACKGROUND_COLOR);
             bg.setStroke(HotbarConfig.SLOT_BORDER_COLOR);
 
-            // 1. Icon
+            // 2. Lớp Icon vật phẩm
             ImageView icon = new ImageView();
 
-            // [QUAN TRỌNG - MỚI THÊM] Gắn sự kiện kéo thả cho icon
+            // Thiết lập các bộ xử lý sự kiện chuột cho icon (Kéo & Thả)
             setupDragHandlers(icon, i);
 
-            // 2. Thanh nền độ bền (Màu đen)
+            // 3. Thanh nền độ bền (Ẩn mặc định)
             Rectangle durBg = new Rectangle();
             durBg.setFill(HotbarConfig.DURABILITY_BG_COLOR);
             durBg.setVisible(false);
 
-            // 3. Thanh độ bền (Chỉ 1 thanh màu, bỏ nền đen)
+            // 4. Thanh hiển thị mức độ bền (Ẩn mặc định)
             Rectangle durBar = new Rectangle();
             durBar.setFill(HotbarConfig.DURABILITY_COLOR_HIGH);
             durBar.setVisible(false);
 
-            // 4. Số thứ tự (Góc trái trên)
-            int keyNum = (i + 1) % 10; // 1, 2... 9, 0
+            // 5. Số thứ tự phím tắt (Góc trái trên)
+            int keyNum = (i + 1) % 10; // Chuyển đổi: 1->9, 10->0
             Text keyLabel = new Text(String.valueOf(keyNum));
             keyLabel.setFont(HotbarConfig.HOTBAR_NUMBER_FONT);
             keyLabel.setFill(HotbarConfig.HOTBAR_TEXT_COLOR);
             keyLabel.setStroke(HotbarConfig.HOTBAR_TEXT_STROKE_COLOR);
             keyLabel.setStrokeWidth(HotbarConfig.HOTBAR_TEXT_STROKE_WIDTH);
-            // Căn chỉnh thủ công trong updateLayout
 
-            // 5. Số lượng (Góc giữa dưới)
+            // 6. Số lượng vật phẩm (Góc phải dưới)
             Text qtyLabel = new Text("");
             qtyLabel.setFont(HotbarConfig.HOTBAR_QUANTITY_FONT);
             qtyLabel.setFill(HotbarConfig.HOTBAR_TEXT_COLOR);
             qtyLabel.setStroke(HotbarConfig.HOTBAR_TEXT_STROKE_COLOR);
             qtyLabel.setStrokeWidth(HotbarConfig.HOTBAR_TEXT_STROKE_WIDTH);
 
-
-            // Thêm theo thứ tự vẽ: Nền -> Icon -> DurBg -> DurBar -> Text
+            // Thêm tất cả vào slot theo thứ tự vẽ (Layer dưới -> trên)
             slot.getChildren().addAll(bg, icon, durBg, durBar, keyLabel, qtyLabel);
             this.slots[i] = slot;
             this.getChildren().add(slot);
         }
 
+        // Khởi tạo khung chọn slot (Selector)
         this.slotSelector = new Rectangle();
         this.slotSelector.setFill(null);
         this.slotSelector.setStroke(HotbarConfig.SLOT_SELECTED_BORDER_COLOR);
         this.getChildren().add(slotSelector);
 
-        // Khởi tạo Label hiển thị tên item
+        // Khởi tạo nhãn tên vật phẩm
         this.itemNameLabel = new Text("");
         this.itemNameLabel.setFont(HotbarConfig.HOTBAR_ITEM_NAME_FONT);
         this.itemNameLabel.setFill(HotbarConfig.HOTBAR_TEXT_COLOR);
         this.itemNameLabel.setStroke(HotbarConfig.HOTBAR_TEXT_STROKE_COLOR);
         this.itemNameLabel.setStrokeWidth(HotbarConfig.HOTBAR_TEXT_STROKE_WIDTH);
-        this.itemNameLabel.setVisible(false); // Ẩn ban đầu
+        this.itemNameLabel.setVisible(false);
         this.getChildren().add(itemNameLabel);
 
-        // Thêm ghost icon vào view (lớp trên cùng)
+        // Thêm ghost icon vào view (Layer trên cùng)
         this.getChildren().add(ghostIcon);
 
+        // Cập nhật bố cục và hiển thị lần đầu
         updateLayout(HotbarConfig.DEFAULT_HOTBAR_SCALE);
         updateView();
     }
 
-    // Setter cho callback
+    // ==============================================================================================
+    // CÁC HÀM THIẾT LẬP CALLBACK (CALLBACK SETTERS)
+    // ==============================================================================================
+
     public void setOnSwapListener(BiConsumer<Integer, Integer> listener) {
         this.onSwapListener = listener;
     }
 
     /**
-     * Set callback cho item drop (including trash can deletion)
-     * Callback receives: (slotIndex, scenePoint) and returns true if dropped on trash
+     * Thiết lập hàm xử lý khi thả vật phẩm.
+     * Hàm này nhận vào (chỉ số slot nguồn, tọa độ thả) và trả về true nếu thả vào thùng rác.
      */
     public void setOnItemDropListener(java.util.function.BiFunction<Integer, javafx.geometry.Point2D, Boolean> listener) {
         this.onItemDropListener = listener;
     }
 
+    // ==============================================================================================
+    // XỬ LÝ KÉO VÀ THẢ (DRAG & DROP LOGIC)
+    // ==============================================================================================
+
     /**
-     * Thiết lập sự kiện kéo thả cho ImageView
+     * Thiết lập toàn bộ logic kéo thả cho hình ảnh vật phẩm.
      */
     private void setupDragHandlers(ImageView icon, int slotIndex) {
-        // 1. Bắt đầu nhấn chuột (Pressed)
+        // 1. Xử lý khi bắt đầu nhấn chuột (Mouse Pressed)
         icon.setOnMousePressed(e -> {
-            // Block drag when game is paused
+            // Chặn thao tác nếu game đang tạm dừng
             if (player.getMainGameView() != null && player.getMainGameView().getGameManager() != null
                     && player.getMainGameView().getGameManager().isPaused()) {
                 return;
             }
 
-            // Chỉ kéo được nếu có item và dùng chuột trái
+            // Chỉ bắt đầu kéo nếu có vật phẩm và dùng chuột trái
             if (icon.getImage() != null && e.isPrimaryButtonDown()) {
                 dragSourceIndex = slotIndex;
 
-                // Tính offset để icon bay theo chuột mượt mà (tránh bị giật về góc 0,0)
+                // Lưu tọa độ chuột hiện tại để tính toán độ lệch di chuyển mượt mà
                 mouseAnchorX = e.getX();
                 mouseAnchorY = e.getY();
 
-                // Setup Ghost Icon
+                // Cấu hình Ghost Icon (Icon bóng ma bay theo chuột)
                 ghostIcon.setImage(icon.getImage());
                 ghostIcon.setFitWidth(icon.getFitWidth());
                 ghostIcon.setFitHeight(icon.getFitHeight());
 
-                // Chuyển tọa độ chuột từ Icon (Local) sang Pane (HotbarView)
-                Point2D pointInPane = icon.localToParent(e.getX(), e.getY());
-                // Vì icon nằm trong StackPane, parent là StackPane (Slot).
-                // Ta cần tọa độ trong HotbarView.
-                // Slot.getLayoutX() + Icon trong Slot (đã căn giữa)
-                // Cách đơn giản: Lấy tọa độ Scene rồi convert về HotbarView
+                // Chuyển đổi tọa độ chuột từ hệ tọa độ Scene sang hệ tọa độ cục bộ của HotbarView
                 Point2D scenePoint = new Point2D(e.getSceneX(), e.getSceneY());
                 Point2D localPoint = this.sceneToLocal(scenePoint);
 
+                // Đặt vị trí ban đầu cho ghost icon sao cho tâm trùng với chuột
                 ghostIcon.setLayoutX(localPoint.getX() - (ghostIcon.getFitWidth() / 2));
                 ghostIcon.setLayoutY(localPoint.getY() - (ghostIcon.getFitHeight() / 2));
 
                 ghostIcon.setVisible(true);
-                ghostIcon.setOpacity(0.7); // Làm mờ icon đang kéo
+                ghostIcon.setOpacity(0.7); // Làm mờ ghost icon
 
-                // Làm mờ icon gốc (tùy chọn)
+                // Làm mờ icon gốc để tạo hiệu ứng đang được nhấc lên
                 icon.setOpacity(0.3);
                 e.consume();
             }
         });
 
-        // 2. Kéo chuột (Dragged)
+        // 2. Xử lý khi di chuyển chuột (Mouse Dragged)
         icon.setOnMouseDragged(e -> {
-            // Block drag when game is paused
+            // Chặn thao tác nếu game đang tạm dừng
             if (player.getMainGameView() != null && player.getMainGameView().getGameManager() != null
                     && player.getMainGameView().getGameManager().isPaused()) {
                 return;
             }
 
             if (dragSourceIndex != -1 && e.isPrimaryButtonDown()) {
-                // Cập nhật vị trí Ghost Icon theo chuột
+                // Cập nhật vị trí Ghost Icon liên tục theo chuột
                 Point2D scenePoint = new Point2D(e.getSceneX(), e.getSceneY());
                 Point2D localPoint = this.sceneToLocal(scenePoint);
 
@@ -211,12 +239,11 @@ public class HotbarView extends Pane {
             }
         });
 
-        // 3. Thả chuột (Released)
+        // 3. Xử lý khi thả chuột (Mouse Released)
         icon.setOnMouseReleased(e -> {
-            // Block drop when game is paused
+            // Nếu game đang tạm dừng, hủy thao tác kéo thả và reset trạng thái
             if (player.getMainGameView() != null && player.getMainGameView().getGameManager() != null
                     && player.getMainGameView().getGameManager().isPaused()) {
-                // Reset drag state if paused
                 if (dragSourceIndex != -1) {
                     icon.setOpacity(1.0);
                     ghostIcon.setVisible(false);
@@ -226,20 +253,18 @@ public class HotbarView extends Pane {
             }
 
             if (dragSourceIndex != -1) {
-                // Khôi phục icon gốc
+                // Khôi phục hiển thị của icon gốc
                 icon.setOpacity(1.0);
 
                 // Ẩn ghost icon
                 ghostIcon.setVisible(false);
 
-                // Xác định slot đích
+                // Xác định slot đích dựa trên vị trí thả chuột
                 int targetIndex = -1;
-
-                // Chuyển tọa độ thả chuột sang tọa độ local của HotbarView
                 Point2D scenePoint = new Point2D(e.getSceneX(), e.getSceneY());
                 Point2D localPoint = this.sceneToLocal(scenePoint);
 
-                // Duyệt qua các slot để xem chuột nằm trong slot nào
+                // Kiểm tra xem chuột có nằm trong slot nào không
                 for (int i = 0; i < slots.length; i++) {
                     if (slots[i].getBoundsInParent().contains(localPoint)) {
                         targetIndex = i;
@@ -247,50 +272,47 @@ public class HotbarView extends Pane {
                     }
                 }
 
-                // Check if dropped on Trash Can (if not dropped on any hotbar slot)
+                // Trường hợp 1: Thả ra ngoài hotbar (có thể là thùng rác hoặc ném đồ)
                 if (targetIndex == -1 && onItemDropListener != null) {
-                    // Not dropped on hotbar slot - check if it's trash via callback
-                    // Pass scene coordinates to callback for accurate trash detection (reuse scenePoint)
+                    // Gọi callback để kiểm tra xem có phải thả vào thùng rác không
                     Boolean isTrash = onItemDropListener.apply(dragSourceIndex, scenePoint);
                     if (isTrash != null && isTrash) {
-                        // Dropped on trash - item will be deleted by callback handler
-                        // Don't do anything here, callback will handle deletion
+                        // Nếu là thùng rác, callback đã xử lý việc xóa item, không cần làm gì thêm ở đây
                     }
-                } else if (targetIndex != -1 && targetIndex != dragSourceIndex) {
-                    // Normal swap - dropped on different hotbar slot
+                }
+                // Trường hợp 2: Thả vào một slot khác trên hotbar
+                else if (targetIndex != -1 && targetIndex != dragSourceIndex) {
+                    // Thực hiện hoán đổi vị trí item
                     if (onSwapListener != null) {
                         onSwapListener.accept(dragSourceIndex, targetIndex);
                     }
                 }
 
-                dragSourceIndex = -1; // Reset
+                dragSourceIndex = -1; // Reset trạng thái
                 e.consume();
             }
         });
     }
 
+    // ==============================================================================================
+    // BỐ CỤC VÀ HIỂN THỊ (LAYOUT & RENDERING)
+    // ==============================================================================================
+
     /**
-     * Hàm này tính toán lại toàn bộ layout của Hotbar dựa trên scale.
-     * Được gọi từ Constructor và SettingsMenu
-     *
-     * @param scale Tỉ lệ scale mới
+     * Tính toán và cập nhật lại toàn bộ kích thước, vị trí các phần tử dựa trên tỉ lệ thu phóng (scale).
+     * Được gọi khi khởi tạo hoặc khi người chơi thay đổi cài đặt kích thước giao diện.
      */
     public void updateLayout(double scale) {
         this.currentScale = scale;
 
-        // Tính toán các kích thước động
+        // Tính toán kích thước động dựa trên scale
         double currentSlotSize = HotbarConfig.BASE_SLOT_SIZE * scale;
         double currentSpacing = HotbarConfig.BASE_SLOT_SPACING * scale;
         double currentStrokeWidth = HotbarConfig.BASE_STROKE_WIDTH * scale;
-
-        // Tính toán kích thước thanh độ bền
         double barHeight = HotbarConfig.DURABILITY_BAR_HEIGHT * scale;
-
-        // Hằng số item scale
-        // Kích thước icon = kích thước ô * tỉ lệ
         double currentItemSize = currentSlotSize * HotbarConfig.ITEM_SCALE_RATIO;
 
-        // Cập nhật layout cho từng ô
+        // Cập nhật từng slot
         for (int i = 0; i < HotbarConfig.HOTBAR_SLOT_COUNT; i++) {
             double x = i * (currentSlotSize + currentSpacing);
 
@@ -299,154 +321,91 @@ public class HotbarView extends Pane {
             slot.setLayoutY(0);
             slot.setPrefSize(currentSlotSize, currentSlotSize);
 
-            // 0. Cập nhật Nền (Background)
+            // Cập nhật Nền slot
             Rectangle bg = (Rectangle) slot.getChildren().get(0);
             bg.setWidth(currentSlotSize);
             bg.setHeight(currentSlotSize);
             bg.setStrokeWidth(currentStrokeWidth);
 
-            // 1. Cập nhật Icon
+            // Cập nhật kích thước Icon
             ImageView icon = (ImageView) slot.getChildren().get(1);
             icon.setFitWidth(currentItemSize);
             icon.setFitHeight(currentItemSize);
-            icon.setTranslateY(HotbarConfig.ICON_Y_TRANSLATE * scale); // Dịch icon lên trên
+            icon.setTranslateY(HotbarConfig.ICON_Y_TRANSLATE * scale);
 
-            // Cấu hình chung cho vị trí thanh độ bền
+            // Tính toán vị trí thanh độ bền
             double maxBarWidth = currentSlotSize * HotbarConfig.DURABILITY_BAR_WIDTH_RATIO;
             double sidePadding = (currentSlotSize - maxBarWidth) / 2;
             double barYOffset = HotbarConfig.DURABILITY_BAR_Y_OFFSET * scale;
 
-            // 2. Cập nhật layout thanh nền độ bền (DurBg)
+            // Cập nhật nền thanh độ bền
             Rectangle durBg = (Rectangle) slot.getChildren().get(2);
             durBg.setHeight(barHeight);
-            durBg.setWidth(maxBarWidth); // Full width cho background
+            durBg.setWidth(maxBarWidth);
             StackPane.setAlignment(durBg, Pos.BOTTOM_LEFT);
             durBg.setTranslateX(sidePadding);
             durBg.setTranslateY(barYOffset);
 
-            // 3. Cập nhật layout thanh độ bền (DurBar)
+            // Cập nhật thanh độ bền
             Rectangle durBar = (Rectangle) slot.getChildren().get(3);
             durBar.setHeight(barHeight);
-            // Width của durBar sẽ được update trong updateView dựa trên % độ bền
             StackPane.setAlignment(durBar, Pos.BOTTOM_LEFT);
             durBar.setTranslateX(sidePadding);
             durBar.setTranslateY(barYOffset);
 
-            // 4. Căn chỉnh Text Số thứ tự
+            // Cập nhật vị trí số thứ tự phím tắt
             Text keyLabel = (Text) slot.getChildren().get(4);
             StackPane.setAlignment(keyLabel, Pos.TOP_LEFT);
             keyLabel.setTranslateX(HotbarConfig.HOTBAR_TEXT_PADDING * scale);
             keyLabel.setTranslateY(HotbarConfig.HOTBAR_TEXT_PADDING * scale);
 
-            // 5. Căn chỉnh Text Số lượng
+            // Cập nhật vị trí số lượng
             Text qtyLabel = (Text) slot.getChildren().get(5);
             StackPane.setAlignment(qtyLabel, Pos.BOTTOM_RIGHT);
             qtyLabel.setTranslateX(-HotbarConfig.HOTBAR_TEXT_PADDING * scale);
             qtyLabel.setTranslateY(-HotbarConfig.HOTBAR_TEXT_PADDING * scale);
         }
 
-        // Cập nhật Ô chọn (Selector)
+        // Cập nhật kích thước khung chọn
         this.slotSelector.setWidth(currentSlotSize);
         this.slotSelector.setHeight(currentSlotSize);
         this.slotSelector.setStrokeWidth(currentStrokeWidth);
-        updateSelectorPosition(); // Gọi hàm helper để đặt đúng vị trí
+        updateSelectorPosition();
 
-        // Tính toán và cập nhật vị trí của TOÀN BỘ PANE (HotbarView)
+        // Căn giữa toàn bộ thanh Hotbar trên màn hình
         double totalWidth = (HotbarConfig.HOTBAR_SLOT_COUNT * currentSlotSize) + ((HotbarConfig.HOTBAR_SLOT_COUNT - 1) * currentSpacing);
-        double yOffset = HotbarConfig.BASE_Y_OFFSET * scale; // Scale cả khoảng cách từ đáy
+        double yOffset = HotbarConfig.BASE_Y_OFFSET * scale;
 
-        this.setLayoutX((WindowConfig.SCREEN_WIDTH - totalWidth) / 2); // Tự động căn giữa
-        this.setLayoutY(WindowConfig.SCREEN_HEIGHT - currentSlotSize - yOffset); // Cách đáy
+        this.setLayoutX((WindowConfig.SCREEN_WIDTH - totalWidth) / 2);
+        this.setLayoutY(WindowConfig.SCREEN_HEIGHT - currentSlotSize - yOffset);
 
-        // Cập nhật Label tên item (ở giữa, phía trên hotbar)
+        // Cập nhật font và vị trí của nhãn tên vật phẩm
         double itemNameFontSize = HotbarConfig.BASE_ITEM_NAME_FONT_SIZE * scale;
         itemNameLabel.setFont(Font.font("Arial", FontWeight.BOLD, itemNameFontSize));
         itemNameLabel.setStrokeWidth(HotbarConfig.HOTBAR_TEXT_STROKE_WIDTH * scale);
 
-        // Tính vị trí Y của label (phía trên hotbar) - sẽ được cập nhật trong updateView()
         double itemNameY = -HotbarConfig.ITEM_NAME_Y_OFFSET * scale;
         itemNameLabel.setY(itemNameY);
-        itemNameLabel.setTextOrigin(javafx.geometry.VPos.BASELINE); // Căn theo baseline
+        itemNameLabel.setTextOrigin(javafx.geometry.VPos.BASELINE);
     }
 
     /**
-     * Cắt ảnh từ sprite sheet items_32x32.png và cache
-     */
-    private void loadItemTextures(ImageManager assetManager) {
-        // [CẬP NHẬT] Tận dụng hàm getItemIcon tập trung của ImageManager để tránh lặp lại logic cắt ảnh
-        // và sửa lỗi không tìm thấy các hàm lẻ (getWoodIcon, getAnimalItemIcon...)
-
-        // Danh sách các Item cơ bản có trong items_32x32.png hoặc animal_item_32x32.png
-        ItemType[] basicItems = {
-                ItemType.HOE, ItemType.WATERING_CAN, ItemType.PICKAXE, ItemType.SHOVEL,
-                ItemType.FERTILIZER, ItemType.AXE, ItemType.SWORD, ItemType.SHEARS,
-                ItemType.MILK_BUCKET, ItemType.FULL_MILK_BUCKET, ItemType.MEAT_CHICKEN,
-                ItemType.MEAT_COW, ItemType.MEAT_PIG, ItemType.MEAT_SHEEP, ItemType.EGG,
-                ItemType.WOOL, ItemType.ENERGY_DRINK, ItemType.SUPER_FEED, ItemType.WOOD,
-                ItemType.ITEM_COW, ItemType.ITEM_CHICKEN, ItemType.ITEM_SHEEP, ItemType.ITEM_PIG
-        };
-
-        // Cache các vật phẩm cơ bản sử dụng getItemIcon
-        for (ItemType type : basicItems) {
-            cacheItemSprite(type, assetManager.getItemIcon(type));
-        }
-
-        // Cache Seeds (Lấy Frame 0 từ crop sheet - Giữ nguyên logic lấy từ crop sheet)
-        cacheItemSprite(ItemType.SEEDS_STRAWBERRY, assetManager.getSeedIcon(CropType.STRAWBERRY));
-        cacheItemSprite(ItemType.SEEDS_DAIKON, assetManager.getSeedIcon(CropType.DAIKON));
-        cacheItemSprite(ItemType.SEEDS_POTATO, assetManager.getSeedIcon(CropType.POTATO));
-        cacheItemSprite(ItemType.SEEDS_CARROT, assetManager.getSeedIcon(CropType.CARROT));
-        cacheItemSprite(ItemType.SEEDS_WATERMELON, assetManager.getSeedIcon(CropType.WATERMELON));
-        cacheItemSprite(ItemType.SEEDS_TOMATO, assetManager.getSeedIcon(CropType.TOMATO));
-        cacheItemSprite(ItemType.SEEDS_WHEAT, assetManager.getSeedIcon(CropType.WHEAT));
-        cacheItemSprite(ItemType.SEEDS_CORN, assetManager.getSeedIcon(CropType.CORN));
-        cacheItemSprite(ItemType.SEEDS_TREE, assetManager.getTreeSeedIcon());
-
-        // Cache Harvest Items (Lấy Frame cuối từ crop sheet - Giữ nguyên logic lấy từ crop sheet)
-        cacheItemSprite(ItemType.STRAWBERRY, assetManager.getHarvestIcon(CropType.STRAWBERRY));
-        cacheItemSprite(ItemType.DAIKON, assetManager.getHarvestIcon(CropType.DAIKON));
-        cacheItemSprite(ItemType.POTATO, assetManager.getHarvestIcon(CropType.POTATO));
-        cacheItemSprite(ItemType.CARROT, assetManager.getHarvestIcon(CropType.CARROT));
-        cacheItemSprite(ItemType.WATERMELON, assetManager.getHarvestIcon(CropType.WATERMELON));
-        cacheItemSprite(ItemType.TOMATO, assetManager.getHarvestIcon(CropType.TOMATO));
-        cacheItemSprite(ItemType.WHEAT, assetManager.getHarvestIcon(CropType.WHEAT));
-        cacheItemSprite(ItemType.CORN, assetManager.getHarvestIcon(CropType.CORN));
-    }
-
-    /**
-     * [XÓA] Hàm cacheItemSprite(sheet, type, col) không còn cần thiết vì ImageManager đã làm việc này.
-     */
-
-    /**
-     * Hàm helper mới để vừa nạp vào map nội bộ của Hotbar, vừa đồng bộ với cache của AssetManager
-     */
-    private void cacheItemSprite(ItemType type, Image icon) {
-        if (icon != null) {
-            itemTextureMap.put(type, icon);
-            // Đồng bộ lại vào assetManager (thực tế ImageManager thường đã cache rồi, nhưng gọi thêm để đảm bảo)
-            assetManager.cacheItemIcon(type, icon);
-        }
-    }
-
-    /**
-     * Được gọi bởi GameManager khi đổi slot,
-     * HOẶC khi layout thay đổi
+     * Cập nhật trạng thái hiển thị của các slot dựa trên dữ liệu inventory của người chơi.
+     * Được gọi khi inventory thay đổi hoặc khi đổi slot chọn.
      */
     public void updateView() {
         ItemStack[] items = player.getHotbarItems();
-        // Tính bar width max cho tính toán tỉ lệ
         double slotSize = HotbarConfig.BASE_SLOT_SIZE * currentScale;
         double maxBarWidth = slotSize * HotbarConfig.DURABILITY_BAR_WIDTH_RATIO;
 
-        // Cập nhật Label tên item đang cầm
+        // Cập nhật nhãn tên vật phẩm đang cầm
         ItemStack currentItem = player.getCurrentItem();
         if (currentItem != null) {
             itemNameLabel.setText(currentItem.getItemType().getName());
             itemNameLabel.setVisible(true);
-            // Cập nhật lại vị trí sau khi set text (vì width thay đổi)
-            // Tính lại totalWidth của hotbar
+
+            // Tính toán lại vị trí để căn giữa nhãn
             double totalWidth = (HotbarConfig.HOTBAR_SLOT_COUNT * slotSize) + ((HotbarConfig.HOTBAR_SLOT_COUNT - 1) * (HotbarConfig.BASE_SLOT_SPACING * currentScale));
-            // Căn giữa theo hotbar (vì label có parent là HotbarView)
             double labelWidth = itemNameLabel.getLayoutBounds().getWidth();
             itemNameLabel.setX((totalWidth - labelWidth) / 2);
         } else {
@@ -464,7 +423,7 @@ public class HotbarView extends Pane {
                 icon.setImage(itemTextureMap.get(stack.getItemType()));
                 icon.setVisible(true);
 
-                // [LOGIC ĐỘ BỀN]
+                // Xử lý hiển thị thanh độ bền
                 if (HotbarConfig.SHOW_DURABILITY_BAR && stack.getItemType().hasDurability()) {
                     durBg.setVisible(true);
                     durBar.setVisible(true);
@@ -472,7 +431,7 @@ public class HotbarView extends Pane {
                     double ratio = (double) stack.getCurrentDurability() / stack.getItemType().getMaxDurability();
                     durBar.setWidth(maxBarWidth * ratio);
 
-                    // Đổi màu theo độ bền
+                    // Đổi màu thanh độ bền (Xanh -> Vàng -> Đỏ)
                     if (ratio > 0.5) durBar.setFill(HotbarConfig.DURABILITY_COLOR_HIGH);
                     else if (ratio > 0.2) durBar.setFill(HotbarConfig.DURABILITY_COLOR_MEDIUM);
                     else durBar.setFill(HotbarConfig.DURABILITY_COLOR_LOW);
@@ -481,7 +440,7 @@ public class HotbarView extends Pane {
                     durBar.setVisible(false);
                 }
 
-                // [LOGIC SỐ LƯỢNG]
+                // Xử lý hiển thị số lượng vật phẩm
                 if (stack.getItemType().isStackable()) {
                     qtyLabel.setText(String.valueOf(stack.getQuantity()));
                     qtyLabel.setVisible(true);
@@ -489,6 +448,7 @@ public class HotbarView extends Pane {
                     qtyLabel.setVisible(false);
                 }
             } else {
+                // Slot trống
                 icon.setImage(null);
                 icon.setVisible(false);
                 qtyLabel.setVisible(false);
@@ -500,71 +460,116 @@ public class HotbarView extends Pane {
     }
 
     /**
-     * Hàm helper tính toán lại vị trí Ô CHỌN
+     * Di chuyển khung chọn đến đúng vị trí slot đang được active.
      */
     private void updateSelectorPosition() {
-        // Tính toán kích thước động
         double currentSlotSize = HotbarConfig.BASE_SLOT_SIZE * this.currentScale;
         double currentSpacing = HotbarConfig.BASE_SLOT_SPACING * this.currentScale;
 
-        // Di chuyển ô chọn
         int selectedSlot = player.getSelectedHotbarSlot();
         double selectorX = selectedSlot * (currentSlotSize + currentSpacing);
         slotSelector.setLayoutX(selectorX);
     }
 
+    // ==============================================================================================
+    // TẢI TÀI NGUYÊN & TIỆN ÍCH (ASSET LOADING & HELPERS)
+    // ==============================================================================================
+
     /**
-     * Tính toán tọa độ TÂM của một slot trên màn hình.
-     * Dùng để làm đích đến cho animation thu hoạch.
+     * Tải và cache toàn bộ hình ảnh vật phẩm từ AssetManager vào map nội bộ.
      */
+    private void loadItemTextures(ImageManager assetManager) {
+        // Tận dụng hàm getItemIcon tập trung của ImageManager để lấy hình ảnh chuẩn
+        ItemType[] basicItems = {
+                ItemType.HOE, ItemType.WATERING_CAN, ItemType.PICKAXE, ItemType.SHOVEL,
+                ItemType.FERTILIZER, ItemType.AXE, ItemType.SWORD, ItemType.SHEARS,
+                ItemType.MILK_BUCKET, ItemType.FULL_MILK_BUCKET, ItemType.MEAT_CHICKEN,
+                ItemType.MEAT_COW, ItemType.MEAT_PIG, ItemType.MEAT_SHEEP, ItemType.EGG,
+                ItemType.WOOL, ItemType.ENERGY_DRINK, ItemType.SUPER_FEED, ItemType.WOOD,
+                ItemType.ITEM_COW, ItemType.ITEM_CHICKEN, ItemType.ITEM_SHEEP, ItemType.ITEM_PIG
+        };
+
+        for (ItemType type : basicItems) {
+            cacheItemSprite(type, assetManager.getItemIcon(type));
+        }
+
+        // Tải ảnh các loại hạt giống
+        cacheItemSprite(ItemType.SEEDS_STRAWBERRY, assetManager.getSeedIcon(CropType.STRAWBERRY));
+        cacheItemSprite(ItemType.SEEDS_DAIKON, assetManager.getSeedIcon(CropType.DAIKON));
+        cacheItemSprite(ItemType.SEEDS_POTATO, assetManager.getSeedIcon(CropType.POTATO));
+        cacheItemSprite(ItemType.SEEDS_CARROT, assetManager.getSeedIcon(CropType.CARROT));
+        cacheItemSprite(ItemType.SEEDS_WATERMELON, assetManager.getSeedIcon(CropType.WATERMELON));
+        cacheItemSprite(ItemType.SEEDS_TOMATO, assetManager.getSeedIcon(CropType.TOMATO));
+        cacheItemSprite(ItemType.SEEDS_WHEAT, assetManager.getSeedIcon(CropType.WHEAT));
+        cacheItemSprite(ItemType.SEEDS_CORN, assetManager.getSeedIcon(CropType.CORN));
+        cacheItemSprite(ItemType.SEEDS_TREE, assetManager.getTreeSeedIcon());
+
+        // Tải ảnh các sản phẩm thu hoạch
+        cacheItemSprite(ItemType.STRAWBERRY, assetManager.getHarvestIcon(CropType.STRAWBERRY));
+        cacheItemSprite(ItemType.DAIKON, assetManager.getHarvestIcon(CropType.DAIKON));
+        cacheItemSprite(ItemType.POTATO, assetManager.getHarvestIcon(CropType.POTATO));
+        cacheItemSprite(ItemType.CARROT, assetManager.getHarvestIcon(CropType.CARROT));
+        cacheItemSprite(ItemType.WATERMELON, assetManager.getHarvestIcon(CropType.WATERMELON));
+        cacheItemSprite(ItemType.TOMATO, assetManager.getHarvestIcon(CropType.TOMATO));
+        cacheItemSprite(ItemType.WHEAT, assetManager.getHarvestIcon(CropType.WHEAT));
+        cacheItemSprite(ItemType.CORN, assetManager.getHarvestIcon(CropType.CORN));
+    }
+
     /**
-     * Tính slot index từ tọa độ chuột (trong HotbarView local coordinates)
-     * @param mouseX Tọa độ X của chuột (trong HotbarView)
-     * @param mouseY Tọa độ Y của chuột (trong HotbarView)
-     * @return Slot index nếu chuột đang ở trên hotbar, -1 nếu không
+     * Lưu trữ hình ảnh vào map nội bộ và đồng bộ lại với ImageManager.
+     */
+    private void cacheItemSprite(ItemType type, Image icon) {
+        if (icon != null) {
+            itemTextureMap.put(type, icon);
+            assetManager.cacheItemIcon(type, icon);
+        }
+    }
+
+    /**
+     * Xác định xem chuột có đang nằm trên slot nào của hotbar không.
+     * Sử dụng tọa độ cục bộ của HotbarView.
+     * @return Chỉ số slot (0-9) hoặc -1 nếu không tìm thấy.
      */
     public int getSlotIndexFromMouse(double mouseX, double mouseY) {
         double slotSize = HotbarConfig.BASE_SLOT_SIZE * currentScale;
         double spacing = HotbarConfig.BASE_SLOT_SPACING * currentScale;
 
-        // Kiểm tra xem chuột có nằm trong vùng hotbar không (theo chiều cao)
+        // Kiểm tra biên theo chiều dọc
         if (mouseY < 0 || mouseY > slotSize) {
-            return -1; // Chuột không nằm trong hotbar
+            return -1;
         }
 
-        // Tính slot index từ tọa độ X
+        // Kiểm tra biên theo chiều ngang để tìm slot
         for (int i = 0; i < HotbarConfig.HOTBAR_SLOT_COUNT; i++) {
             double slotX = i * (slotSize + spacing);
             if (mouseX >= slotX && mouseX < slotX + slotSize) {
-                return i; // Tìm thấy slot
+                return i;
             }
         }
 
-        return -1; // Không tìm thấy slot
+        return -1;
     }
 
+    /**
+     * Tính toán tọa độ tâm tuyệt đối (Global/Screen coordinates) của một slot.
+     * Dùng để hỗ trợ các hiệu ứng hình ảnh bay từ slot này ra ngoài thế giới.
+     */
     public Point2D getSlotCenter(int slotIndex) {
         if (slotIndex < 0 || slotIndex >= HotbarConfig.HOTBAR_SLOT_COUNT) return null;
 
-        // Tính toán kích thước động hiện tại
         double currentSlotSize = HotbarConfig.BASE_SLOT_SIZE * this.currentScale;
         double currentSpacing = HotbarConfig.BASE_SLOT_SPACING * this.currentScale;
 
-        // Tọa độ X của slot so với HotbarView (Local)
+        // Tọa độ X cục bộ
         double slotLocalX = slotIndex * (currentSlotSize + currentSpacing);
-        // Tọa độ Y của slot so với HotbarView (Local) = 0 (vì Hotbar nằm ngang)
 
-        // Chuyển sang tọa độ Global (Màn hình)
-        // = Tọa độ Hotbar + Tọa độ Slot + Bán kính (để lấy tâm)
+        // Chuyển đổi sang tọa độ toàn cục bằng cách cộng thêm vị trí của HotbarView trên màn hình
         double centerX = this.getLayoutX() + slotLocalX + (currentSlotSize / 2);
         double centerY = this.getLayoutY() + (currentSlotSize / 2);
 
         return new Point2D(centerX, centerY);
     }
 
-    /**
-     * Lấy scale hiện tại của hotbar
-     */
     public double getCurrentScale() {
         return currentScale;
     }

@@ -3,49 +3,49 @@ package com.example.farmSimulation.model;
 import com.example.farmSimulation.config.CropConfig;
 import com.example.farmSimulation.config.GameLogicConfig;
 
-// Class quản lý hệ thống ngầm của cây
+// Class quản lý logic và trạng thái của hệ thống cây trồng
 public class CropManager {
     private final WorldMap worldMap;
     private WeatherManager weatherManager; // Quản lý thời tiết
-    private TimeManager timeManager; // Quản lý thời gian (để kiểm tra ban đêm)
+    private TimeManager timeManager; // Quản lý thời gian trong game
 
-    // Biến để theo dõi thời gian frame trước
+    // Thời điểm cập nhật frame trước đó
     private long lastUpdateTime = 0;
-    
-    // Thời gian update lần cuối (để sử dụng interval)
+
+    // Thời điểm cập nhật logic cây trồng lần cuối để kiểm soát tần suất xử lý
     private long lastCropUpdateTimeMs = 0;
-    
-    // Index để track tiles đã update (để phân bổ update qua nhiều frame)
+
+    // Chỉ số theo dõi các ô đất đã xử lý, giúp phân chia khối lượng công việc qua nhiều frame
     private int lastProcessedIndex = 0;
 
     public CropManager(WorldMap worldMap) {
         this.worldMap = worldMap;
     }
-    
+
     /**
-     * Set WeatherManager (được gọi từ GameManager)
+     * Thiết lập đối tượng quản lý thời tiết
      */
     public void setWeatherManager(WeatherManager weatherManager) {
         this.weatherManager = weatherManager;
     }
-    
+
     /**
-     * Set TimeManager (được gọi từ GameManager)
+     * Thiết lập đối tượng quản lý thời gian
      */
     public void setTimeManager(TimeManager timeManager) {
         this.timeManager = timeManager;
     }
 
     /**
-     * Hàm Reset Tile về trạng thái Soil khô mặc định (Helper)
-     * Dùng khi cây chết để reset mọi thứ
+     * Đưa ô đất về trạng thái đất khô mặc định.
+     * Thường được sử dụng khi cây chết hoặc cần làm mới ô đất.
      */
     private void resetTileToSoil(TileData data, long currentTime) {
         data.setBaseTileType(Tile.SOIL);
         data.setCropData(null);
         data.setWatered(false);
         data.setFertilized(false);
-        data.setDryStartTime(currentTime); // Reset timer để bắt đầu đếm lùi mọc cỏ
+        data.setDryStartTime(currentTime); // Đặt lại bộ đếm thời gian để bắt đầu tính giờ mọc cỏ
         data.setFertilizerStartTime(0);
         data.setStatusIndicator(CropStatusIndicator.NONE);
     }
@@ -54,92 +54,89 @@ public class CropManager {
         boolean mapNeedsRedraw = false;
         long currentTimeMs = currentTime / 1_000_000;
 
-        // Tính delta time (thời gian trôi qua giữa 2 frame)
+        // Tính toán thời gian trôi qua giữa hai lần gọi hàm update
         if (lastUpdateTime == 0) {
             lastUpdateTime = currentTime;
             lastCropUpdateTimeMs = currentTimeMs;
-            return false; // Frame đầu chưa làm gì
+            return false; // Bỏ qua frame đầu tiên
         }
         long deltaTime = currentTime - lastUpdateTime;
         lastUpdateTime = currentTime;
 
-        // Chỉ update crops theo interval, không phải mỗi frame
+        // Chỉ thực hiện cập nhật logic cây trồng theo chu kỳ quy định để tối ưu hiệu năng
         if (currentTimeMs - lastCropUpdateTimeMs < GameLogicConfig.CROP_UPDATE_INTERVAL_MS) {
-            return false; // Chưa đến lúc update
+            return false;
         }
         lastCropUpdateTimeMs = currentTimeMs;
 
-        // Lấy tất cả tiles và chỉ xử lý những tiles cần thiết
-        // Tối ưu: Chỉ update tiles có cây trồng, đất ướt, hoặc đất khô cần kiểm tra
+        // Lấy danh sách tất cả các ô đất để lọc ra những ô cần xử lý
         java.util.Collection<TileData> allTiles = worldMap.getAllTileData();
         java.util.ArrayList<TileData> tilesToUpdate = new java.util.ArrayList<>();
-        
-        // Lọc ra các tiles cần update (có cây, đất ướt, hoặc đất khô)
+
+        // Chỉ thêm vào danh sách xử lý nếu ô đất có cây, đang ướt, đã bón phân hoặc là đất thường
         for (TileData data : allTiles) {
-            if (data.getCropData() != null || 
-                data.isWatered() || 
-                data.isFertilized() || 
-                data.getBaseTileType() == Tile.SOIL) { // Bao gồm tất cả đất SOIL (có hoặc không có dryStartTime)
+            if (data.getCropData() != null ||
+                    data.isWatered() ||
+                    data.isFertilized() ||
+                    data.getBaseTileType() == Tile.SOIL) {
                 tilesToUpdate.add(data);
             }
         }
 
-        // Giới hạn số lượng tiles update mỗi lần để tránh lag spike
+        // Giới hạn số lượng ô đất được cập nhật trong mỗi frame để tránh giật lag
         int processedCount = 0;
         int startIndex = lastProcessedIndex;
-        
+
         for (int i = 0; i < tilesToUpdate.size() && processedCount < GameLogicConfig.MAX_CROPS_UPDATE_PER_FRAME; i++) {
             int index = (startIndex + i) % tilesToUpdate.size();
             TileData data = tilesToUpdate.get(index);
             boolean changed = false;
             processedCount++;
 
-            // --- LOGIC TƯỚI NƯỚC & ĐẤT ---
-            // [MỚI] Nếu đang mưa, tự động tưới ướt tất cả đất có cây
-            if (weatherManager != null && weatherManager.isRaining() && 
-                data.getBaseTileType() == Tile.SOIL && data.getCropData() != null && !data.isWatered()) {
-                // Mưa tự động tưới ướt đất có cây
+            // --- LOGIC TƯỚI NƯỚC VÀ ĐẤT ---
+            // Tự động tưới ướt đất có cây nếu trời đang mưa
+            if (weatherManager != null && weatherManager.isRaining() &&
+                    data.getBaseTileType() == Tile.SOIL && data.getCropData() != null && !data.isWatered()) {
                 data.setWatered(true);
                 data.setBaseTileType(Tile.SOIL_WET);
                 data.setLastWateredTime(currentTime);
-                data.setDryStartTime(0); // Xóa thời gian khô
+                data.setDryStartTime(0); // Xóa thời gian bắt đầu khô do đất đã ướt
                 changed = true;
             }
-            
+
             if (data.isWatered()) {
-                // Đất ướt -> Tự khô (trừ khi đang mưa)
+                // Đất ướt sẽ tự khô nếu trời không mưa
                 if (weatherManager == null || !weatherManager.isRaining()) {
-                    // Chỉ khô khi không mưa
                     if (currentTimeMs - data.getLastWateredTime() / 1_000_000 > CropConfig.SOIL_DRY_TIME_MS) {
                         data.setWatered(false);
                         data.setBaseTileType(Tile.SOIL);
-                        data.setDryStartTime(currentTime); // Bắt đầu đếm giờ khô
+                        data.setDryStartTime(currentTime); // Bắt đầu tính giờ khô
                         changed = true;
                     }
                 }
-            } else if (data.getBaseTileType() == Tile.SOIL) { // Đất khô
-                if (data.getCropData() == null) { // Đất hoang -> Mọc cỏ
-                    // Kiểm tra nếu dryStartTime chưa có (bằng 0) thì set ngay
+            } else if (data.getBaseTileType() == Tile.SOIL) { // Trường hợp đất khô
+                if (data.getCropData() == null) { // Đất hoang không có cây
+                    // Khởi tạo thời gian khô nếu chưa có
                     if (data.getDryStartTime() == 0) {
                         data.setDryStartTime(currentTime);
                     } else {
-                        // Nếu đã khô đủ lâu -> Mọc cỏ
+                        // Đất khô để lâu không canh tác sẽ mọc cỏ trở lại
                         if ((currentTime - data.getDryStartTime()) / 1_000_000 > CropConfig.SOIL_REVERT_TIME_MS) {
                             data.setBaseTileType(Tile.GRASS);
                             data.setDryStartTime(0);
                             changed = true;
                         }
                     }
-                } else { // Có cây trên đất khô -> Kiểm tra chết
-                    // Nếu đất khô mà DryTime = 0, reset ngay lập tức để tránh cây chết oan
+                } else { // Có cây trên đất khô
+                    // Đảm bảo thời gian khô được ghi nhận để tính toán logic chết cây
                     if (data.getDryStartTime() == 0) {
                         data.setDryStartTime(currentTime);
                     }
                     long dryDuration = (currentTime - data.getDryStartTime()) / 1_000_000;
                     long deathTime = CropConfig.WATER_WARNING_DELAY_MS + CropConfig.CROP_DEATH_TIME_MS;
 
+                    // Nếu cây còn sống nhưng đất khô quá giới hạn chịu đựng thì cây sẽ chết
                     if (data.getCropData().getGrowthStage() != -1 && dryDuration > deathTime) {
-                        // Cây chết -> Reset hoàn toàn tile
                         resetTileToSoil(data, currentTime);
                         changed = true;
                     }
@@ -148,20 +145,20 @@ public class CropManager {
 
             // --- LOGIC PHÂN BÓN ---
             if (data.isFertilized()) {
-                // Phân bón tự hết lớp hiển thị (nhưng buff có thể vẫn còn hoặc hết tùy logic)
+                // Hiệu ứng hình ảnh phân bón sẽ biến mất sau thời gian quy định
                 if ((currentTime - data.getFertilizerStartTime()) / 1_000_000 > CropConfig.FERTILIZER_EFFECT_DURATION_MS) {
-                    data.setFertilized(false); // Mất lớp hiển thị
+                    data.setFertilized(false);
                     changed = true;
                 }
             }
 
-            // --- LOGIC CÂY LỚN ---
-            // Điều kiện lớn: Có cây, chưa chết, chưa lớn hết
+            // --- LOGIC PHÁT TRIỂN CỦA CÂY ---
+            // Cây chỉ lớn khi tồn tại, chưa chết và chưa đạt giai đoạn trưởng thành tối đa
             CropData crop = data.getCropData();
             if (crop != null && crop.getGrowthStage() != -1 && crop.getGrowthStage() < crop.getType().getMaxStages() - 1) {
 
-                // Kiểm tra điều kiện nước để lớn:
-                // Cây lớn bình thường khi đất ướt HOẶC đất khô nhưng chưa đến warning time
+                // Xác định cây có đủ điều kiện nước để lớn hay không
+                // Cây vẫn có thể lớn nếu đất khô nhưng chưa vượt quá thời gian cảnh báo
                 boolean canGrowWater = data.isWatered();
                 if (!data.isWatered() && data.getDryStartTime() > 0) {
                     long dryDuration = (currentTime - data.getDryStartTime()) / 1_000_000;
@@ -171,40 +168,40 @@ public class CropManager {
                 }
 
                 if (canGrowWater) {
-                    // Kiểm tra buff phân bón
-                    // Buff còn tác dụng nếu: Đang bón HOẶC đã hết phân nhưng chưa hết warning time
+                    // Kiểm tra hiệu lực tăng tốc của phân bón
+                    // Phân bón có tác dụng khi còn hiển thị hoặc trong thời gian ân hạn sau khi hình ảnh biến mất
                     boolean hasBuff = false;
                     if (data.getFertilizerStartTime() > 0) {
                         long timeSinceFertilizer = (currentTime - data.getFertilizerStartTime()) / 1_000_000;
-                        // Chỉ BUFF khi còn trong thời gian hiệu lực
                         if (timeSinceFertilizer <= (CropConfig.FERTILIZER_EFFECT_DURATION_MS + CropConfig.FERTILIZER_WARNING_DELAY_MS)) {
                             hasBuff = true;
                         }
                     }
 
+                    // Tính toán thời gian cần thiết cho mỗi giai đoạn phát triển, có áp dụng buff phân bón
                     double timePerStage = hasBuff ? (CropConfig.TIME_PER_GROWTH_STAGE_MS / CropConfig.FERTILIZER_BUFF) : CropConfig.TIME_PER_GROWTH_STAGE_MS;
-                    
-                    // Áp dụng weather/time multipliers
+
+                    // Khởi tạo hệ số tốc độ phát triển cơ bản
                     double growthSpeedMultiplier = CropConfig.BASE_GROWTH_SPEED;
-                    
-                    // Kiểm tra ban đêm (light intensity thấp)
+
+                    // Kiểm tra xem có phải ban đêm không dựa trên cường độ ánh sáng
                     boolean isNight = false;
                     if (timeManager != null) {
                         double lightIntensity = timeManager.getCurrentLightIntensity();
                         isNight = (lightIntensity < CropConfig.NIGHT_LIGHT_THRESHOLD);
                     }
-                    
-                    // Áp dụng multiplier cho ban đêm
+
+                    // Giảm tốc độ phát triển vào ban đêm
                     if (isNight) {
                         growthSpeedMultiplier *= CropConfig.NIGHT_GROWTH_SPEED_MULTIPLIER;
                     }
-                    
-                    // Áp dụng multiplier cho mưa
+
+                    // Giảm tốc độ phát triển khi trời mưa
                     if (weatherManager != null && weatherManager.isRaining()) {
                         growthSpeedMultiplier *= CropConfig.RAIN_GROWTH_SPEED_MULTIPLIER;
                     }
-                    
-                    // Điều chỉnh timePerStage dựa trên growth speed multiplier
+
+                    // Điều chỉnh thời gian cần thiết cho mỗi giai đoạn dựa trên tổng hệ số tốc độ
                     timePerStage = timePerStage / growthSpeedMultiplier;
 
                     long timeElapsedMs = (currentTime - crop.getPlantTime()) / 1_000_000;
@@ -213,24 +210,23 @@ public class CropManager {
 
                     if (targetStage > crop.getGrowthStage()) {
                         crop.setGrowthStage(targetStage);
-                        // Nếu cây đã lớn tối đa (Chín) -> Mất lớp phân bón ngay lập tức
+                        // Nếu cây đã chín hoàn toàn, loại bỏ trạng thái phân bón ngay lập tức
                         if (targetStage >= crop.getType().getMaxStages() - 1) {
                             data.setFertilized(false);
                         }
                         changed = true;
                     }
                 } else {
-                    // ĐÓNG BĂNG THỜI GIAN
-                    // Nếu thiếu nước và đã qua Warning Time -> Cây ngừng lớn
-                    // Cách làm: Đẩy plantTime về phía trước 1 khoảng bằng deltaTime
-                    // Điều này khiến (currentTime - plantTime) không thay đổi
+                    // Cơ chế đóng băng thời gian phát triển khi cây thiếu nước quá lâu
+                    // Bằng cách cộng thêm khoảng thời gian trôi qua vào thời điểm gieo trồng,
+                    // hiệu số giữa hiện tại và thời điểm gieo trồng sẽ được giữ nguyên, khiến cây không lớn thêm.
                     long newPlantTime = crop.getPlantTime() + deltaTime;
                     crop.setPlantTime(newPlantTime);
-                    // Không set changed = true vì stage không đổi
+                    // Không đánh dấu changed là true vì giai đoạn phát triển không thay đổi
                 }
             }
 
-            // --- CẬP NHẬT ICON ---
+            // --- CẬP NHẬT BIỂU TƯỢNG TRẠNG THÁI ---
             CropStatusIndicator newStatus = calculateStatus(data, crop, currentTime);
             if (data.getStatusIndicator() != newStatus) {
                 data.setStatusIndicator(newStatus);
@@ -241,12 +237,12 @@ public class CropManager {
                 mapNeedsRedraw = true;
             }
         }
-        
-        // Cập nhật index để lần sau tiếp tục từ vị trí này
+
+        // Lưu lại vị trí chỉ số hiện tại để tiếp tục xử lý các ô còn lại trong frame tiếp theo
         if (tilesToUpdate.size() > 0) {
             lastProcessedIndex = (startIndex + processedCount) % tilesToUpdate.size();
         }
-        
+
         return mapNeedsRedraw;
     }
 
@@ -255,7 +251,7 @@ public class CropManager {
         if (crop.getGrowthStage() == -1) return CropStatusIndicator.DEAD;
         if (crop.getGrowthStage() >= crop.getType().getMaxStages() - 1) return CropStatusIndicator.READY_TO_HARVEST;
 
-        // Warning Nước: Đất khô > Warning Time
+        // Cảnh báo nước: Đất khô vượt quá thời gian cảnh báo cho phép
         boolean waterWarning = false;
         if (!data.isWatered() && data.getDryStartTime() > 0) {
             long dryDuration = (currentTime - data.getDryStartTime()) / 1_000_000;
@@ -264,25 +260,24 @@ public class CropManager {
             }
         }
 
-        // Warning Phân bón:
+        // Cảnh báo phân bón
         boolean fertilizerWarning = false;
 
-        // Chỉ xét cảnh báo phân bón khi đủ tuổi và chưa chín
+        // Chỉ hiển thị cảnh báo phân bón khi cây đã đủ lớn và chưa chín
         if (crop.getGrowthStage() >= CropConfig.MIN_GROWTH_STAGE_FOR_FERTILIZER && crop.getGrowthStage() < crop.getType().getMaxStages() - 1) {
             if (data.isFertilized()) {
-                // Đang có phân trên đất -> KHÔNG hiện cảnh báo
+                // Đất đang có phân bón thì không cần cảnh báo
                 fertilizerWarning = false;
             } else {
-                // Đất không có phân (hoặc đã tan hết)
-                // Kiểm tra xem đã hết tác dụng chưa
+                // Đất không có lớp phân bón hoặc đã tan hết
                 if (data.getFertilizerStartTime() > 0) {
                     long timeSinceStart = (currentTime - data.getFertilizerStartTime()) / 1_000_000;
-                    // Đã qua thời gian (Effect + Warning) -> Hết tác dụng -> Cần bón lại
+                    // Nếu đã qua thời gian hiệu lực và thời gian cảnh báo thì cần bón lại
                     if (timeSinceStart > (CropConfig.FERTILIZER_EFFECT_DURATION_MS + CropConfig.FERTILIZER_WARNING_DELAY_MS)) {
                         fertilizerWarning = true;
                     }
                 } else {
-                    // Chưa bón bao giờ -> Cần bón
+                    // Cây chưa từng được bón phân nên cần bón
                     fertilizerWarning = true;
                 }
             }

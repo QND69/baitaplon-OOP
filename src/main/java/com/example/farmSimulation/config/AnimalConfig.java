@@ -174,7 +174,7 @@ public class AnimalConfig {
     /** Khoảng cách tối thiểu khi đi theo người chơi (đứng lại khi gần đủ) */
     public static final double PLAYER_FOLLOW_STOP_DISTANCE = 48.0;
 
-    // --- [SỬA] Cấu hình State Timer (Phân tách Gà và Thú thường) ---
+    // --- Cấu hình State Timer (Phân tách Gà và Thú thường) ---
 
     // 1. Cấu hình cho GÀ (Chicken) - Giữ nguyên như cũ vì bạn thấy hợp lý
     /** Thời gian tối thiểu gà đứng yên (ms) */

@@ -49,32 +49,44 @@ public class HudConfig {
     public static final double LEVEL_FONT_SIZE = 16.0;
     public static final Paint LEVEL_TEXT_COLOR = Color.WHITE;
     public static final Paint LEVEL_BG_COLOR = Color.rgb(100, 150, 200);
+    public static final String LEVEL_TEXT_PREFIX = "LEVEL: ";
 
     // --- Cấu hình Bar Labels (Stamina, Exp) ---
     public static final double BAR_LABEL_FONT_SIZE = 12.0;
     public static final Paint BAR_LABEL_COLOR = Color.WHITE;
+    public static final double BAR_OFFSET_X = 5.0; // Khoảng cách icon và bar
 
     // --- Cấu hình XP Bar (Top-Left, dưới Level) ---
     public static final double XP_BAR_WIDTH = 150.0;
-    // [SỬA] Tăng chiều cao thanh XP lên 1 chút (8.0 -> 12.0)
+    // Tăng chiều cao thanh XP lên 1 chút (8.0 -> 12.0)
     public static final double XP_BAR_HEIGHT = 12.0;
     public static final Paint XP_BAR_BG_COLOR = Color.rgb(50, 50, 50);
     public static final Paint XP_BAR_FILL_COLOR = Color.rgb(100, 200, 255); // Blue
 
     // --- Cấu hình Stamina Bar (Top-Left, dưới XP Bar) ---
     public static final double STAMINA_BAR_WIDTH = 150.0;
-    // [SỬA] Tăng chiều cao thanh Stamina lên 1 chút (12.0 -> 16.0)
+    // Tăng chiều cao thanh Stamina lên 1 chút (12.0 -> 16.0)
     public static final double STAMINA_BAR_HEIGHT = 16.0;
     public static final Paint STAMINA_BAR_BG_COLOR = Color.rgb(50, 50, 50);
     public static final Paint STAMINA_BAR_FULL_COLOR = Color.rgb(32, 170, 32); // Green
     public static final Paint STAMINA_BAR_LOW_COLOR = Color.rgb(200, 50, 50); // Red
 
+    // Màu sắc thanh Stamina theo trạng thái
+    public static final Color STAMINA_COLOR_HIGH = Color.web("#2ecc71");
+    public static final Color STAMINA_COLOR_MEDIUM = Color.web("#f1c40f");
+    public static final Color STAMINA_COLOR_LOW = Color.web("#e74c3c");
+    public static final double STAMINA_THRESHOLD_HIGH = 0.6;
+    public static final double STAMINA_THRESHOLD_MEDIUM = 0.15;
+
     // --- Cấu hình Timer (Top-Right) ---
     public static final String DAY_DEFAULT_TEXT = "Day 1";
+    public static final String DAY_PREFIX = "Day ";
     public static final String TIME_DEFAULT_TEXT = "12:00";
     public static final String DAY_STYLE_CSS = "-fx-font-size: 16px; -fx-text-fill: white;"; // Không có background
     public static final String TIME_STYLE_CSS = "-fx-font-size: 16px; -fx-text-fill: white;"; // Không có background
     public static final double TIMER_LABEL_WIDTH = 200.0; // Fixed width cho timer label để căn phải
+    public static final double DAY_TIME_SPACING_Y = 20.0; // Khoảng cách Y giữa Day và Time
+    public static final double TIME_WEATHER_SPACING_Y = 25.0; // Khoảng cách Y giữa Time và Weather
 
     // --- Cấu hình Weather Icon (Top-Right) ---
     public static final double WEATHER_ICON_SIZE = 32.0;
@@ -88,18 +100,22 @@ public class HudConfig {
     public static final double MONEY_X_POSITION = 10.0; // Vị trí X của label tiền
     public static final double MONEY_Y_POSITION = 50.0; // Vị trí Y của label tiền (dưới Timer)
     public static final double MONEY_ICON_SIZE = 24.0; // Kích thước icon coin
+    public static final double MONEY_CONTAINER_SPACING = 5.0; // Spacing trong HBox tiền
     public static final Paint MONEY_ICON_COLOR = Color.GOLD; // Màu icon coin (vàng)
     public static final Paint MONEY_TEXT_COLOR = Color.WHITE; // Màu chữ số tiền
     public static final double MONEY_FONT_SIZE = 18.0; // Kích thước font số tiền
     public static final double MONEY_ICON_SPACING = 5.0; // Khoảng cách giữa icon và text
     public static final String MONEY_CONTAINER_STYLE = "-fx-background-color: rgba(0, 0, 0, 0.5); -fx-background-radius: 15; -fx-padding: 5 10 5 5;"; // Rounded box for money container
     public static final String MONEY_TEXT_STYLE = "-fx-font-size: 18px; -fx-text-fill: white; -fx-font-weight: bold;"; // Text only, no background
+    public static final String MONEY_PREFIX = "$";
 
-    // [MỚI] Cấu hình hiển thị Tọa độ (Coordinates)
+    // Cấu hình hiển thị Tọa độ (Coordinates)
     public static final double COORDS_OFFSET_Y_FROM_MONEY = 40.0; // Khoảng cách Y bên dưới tiền
     public static final String COORDS_CONTAINER_STYLE = "-fx-background-color: rgba(0, 0, 0, 0.3); -fx-background-radius: 10; -fx-padding: 3 8 3 8;"; // Mờ hơn và nhỏ hơn tiền
     public static final String COORDS_TEXT_STYLE = "-fx-font-size: 12px; -fx-text-fill: white;"; // Font nhỏ hơn tiền (12px vs 18px)
     public static final boolean DEFAULT_SHOW_COORDINATES = true; // Mặc định tắt
+    public static final String COORDS_DEFAULT_TEXT = "X: 0, Y: 0";
+    public static final String COORDS_FORMAT = "X: %d, Y: %d";
 
     // --- Cấu hình GUI Icons (from GUI_icon_32x32.png) ---
     public static final double GUI_ICON_SIZE = 32.0; // Kích thước mỗi icon trong sheet
@@ -113,7 +129,7 @@ public class HudConfig {
     public static final int GUI_ICON_TRASH_COL = 8; // Trash Can icon column
     public static final int GUI_ICON_QUEST_COL = 9; // Quest (Scroll/Checklist) icon column
 
-    // [MỚI] Cấu hình cho Icon Stamina và Exp
+    // Cấu hình cho Icon Stamina và Exp
     public static final int GUI_ICON_STAMINA_COL = 5; // Cột 5 - Stamina
     public static final int GUI_ICON_EXP_COL = 10;    // Cột 10 - Exp
 
@@ -131,16 +147,13 @@ public class HudConfig {
     // Vì Background 64x64 nhưng phần vẽ chỉ chiếm 2/3 trên, ta cần đẩy Icon lên một chút so với tâm BG
     public static final double ICON_PADDING_TOP = 12.0;
 
-    // --- [MỚI] CẤU HÌNH ANIMATION THU HOẠCH ---
+    // --- CẤU HÌNH ANIMATION THU HOẠCH ---
     public static final double HARVEST_ICON_SIZE = 32.0; // Kích thước icon bay
     public static final double HARVEST_FLY_DURATION_MS = 600; // Thời gian bay
     public static final double HARVEST_FADE_DURATION_MS = 200; // Thời gian mờ dần
     public static final double HARVEST_FADE_DELAY_MS = 400; // Delay trước khi mờ
     public static final double HARVEST_SCALE_FROM = 1.0;
     public static final double HARVEST_SCALE_TO = 0.5; // Thu nhỏ lại khi về túi
-
-    // --- [MỚI] CẤU HÌNH DEBUG COORDINATES ---
-    // (Đã được thay thế bằng hệ thống HUD Coordinates mới ở trên)
 
     private HudConfig() {
     }

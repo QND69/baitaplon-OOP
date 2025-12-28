@@ -21,21 +21,28 @@ import javafx.scene.text.FontWeight;
 import java.util.List;
 
 /**
- * Shop UI - Supports Buying (Daily Stock) and Selling
+ * Giao diện Cửa hàng (Shop UI) - Hỗ trợ chức năng Mua (từ kho hàng ngày) và Bán vật phẩm.
  */
 public class ShopView extends StackPane {
+
+    // ==============================================================================================
+    // KHAI BÁO BIẾN VÀ THÀNH PHẦN GIAO DIỆN
+    // ==============================================================================================
+
     private final ShopManager shopManager;
     private final ImageManager assetManager;
-    private final GridPane itemGrid;
-    private final Label messageLabel; // Label for messages
-    private final Label moneyLabel; // Label for player's money
-    private final VBox rerollButtonBox; // Reroll button (fixed position, not in grid)
-    
-    // Buy/Sell Mode
-    private boolean isSellingMode = false; // false = Buy mode, true = Sell mode
+
+    // Các thành phần UI chính
+    private final GridPane itemGrid;    // Lưới hiển thị danh sách vật phẩm
+    private final Label messageLabel;   // Nhãn hiển thị thông báo trạng thái
+    private final Label moneyLabel;     // Nhãn hiển thị số tiền của người chơi
+    private final VBox rerollButtonBox; // Khu vực chứa nút làm mới kho hàng (vị trí cố định)
+
+    // Trạng thái chế độ Mua/Bán
+    private boolean isSellingMode = false; // false = Chế độ Mua, true = Chế độ Bán
     private Button buyTabButton;
     private Button sellTabButton;
-    
+
     public ShopView(ShopManager shopManager, ImageManager assetManager) {
         this.shopManager = shopManager;
         this.assetManager = assetManager;
@@ -43,115 +50,122 @@ public class ShopView extends StackPane {
         this.messageLabel = new Label();
         this.moneyLabel = new Label();
         this.rerollButtonBox = new VBox(10);
-        
+
         setupUI();
     }
-    
+
+    // ==============================================================================================
+    // KHỞI TẠO VÀ THIẾT LẬP GIAO DIỆN (SETUP UI)
+    // ==============================================================================================
+
     /**
-     * Setup Shop UI
+     * Thiết lập cấu trúc giao diện Cửa hàng
      */
     private void setupUI() {
-        // Set fixed size for ShopView
+        // Thiết lập kích thước cố định cho ShopView
         this.setPrefSize(ShopConfig.SHOP_WIDTH, ShopConfig.SHOP_HEIGHT);
         this.setMaxSize(ShopConfig.SHOP_WIDTH, ShopConfig.SHOP_HEIGHT);
         this.setMinSize(ShopConfig.SHOP_WIDTH, ShopConfig.SHOP_HEIGHT);
-        
-        // Load shop background image
+
+        // Tải ảnh nền cửa hàng
         Image bgImage = new Image(getClass().getResourceAsStream(ShopConfig.SHOP_BG_PATH));
         ImageView bgView = new ImageView(bgImage);
         bgView.setFitWidth(ShopConfig.SHOP_WIDTH);
         bgView.setFitHeight(ShopConfig.SHOP_HEIGHT);
-        bgView.setPreserveRatio(false); // Stretch to fill entire size
-        
-        // Create VBox for content
+        bgView.setPreserveRatio(false); // Kéo giãn ảnh để lấp đầy kích thước
+
+        // Tạo VBox chứa nội dung chính
         VBox contentBox = new VBox(15);
         contentBox.setAlignment(Pos.TOP_CENTER);
         contentBox.setPadding(new Insets(ShopConfig.SHOP_PADDING));
         contentBox.setPrefSize(ShopConfig.SHOP_WIDTH, ShopConfig.SHOP_HEIGHT);
-        
-        // Create HBox for header (title + money display)
+
+        // Tạo HBox cho phần tiêu đề (Tiêu đề + Hiển thị tiền)
         HBox headerBox = new HBox();
         headerBox.setAlignment(Pos.CENTER);
         headerBox.setPrefWidth(ShopConfig.SHOP_WIDTH - ShopConfig.SHOP_PADDING * 2);
-        
-        // Shop title
+
+        // Tiêu đề Shop
         Label titleLabel = new Label("SHOP");
         titleLabel.setFont(Font.font("Arial", FontWeight.BOLD, 32));
         titleLabel.setTextFill(Color.WHITE);
         titleLabel.setStyle("-fx-effect: dropshadow(one-pass-box, black, 2, 0, 0, 1);");
-        
-        // Money Display (Top-Right) - Very prominent
+
+        // Hiển thị tiền (Góc trên bên phải) - Thiết kế nổi bật
         moneyLabel.setFont(Font.font("Arial", FontWeight.BOLD, ShopConfig.MONEY_DISPLAY_FONT_SIZE));
         moneyLabel.setTextFill(ShopConfig.MONEY_DISPLAY_COLOR);
         moneyLabel.setStyle("-fx-effect: dropshadow(one-pass-box, black, 3, 0, 0, 2);");
-        updateMoneyDisplay(); // Update money initially
-        
-        // [SỬA] Thêm margin cho moneyLabel để đẩy nó xuống thấp hơn (đừng dính sát mép trên)
-        HBox.setMargin(moneyLabel, new Insets(15, 0, 0, 0)); // Top margin 15px
+        updateMoneyDisplay(); // Cập nhật số tiền ban đầu
 
-        // Use Region to push money label to the right
+        // Thêm khoảng cách lề trên cho nhãn tiền tệ để tránh dính sát mép trên giao diện
+        HBox.setMargin(moneyLabel, new Insets(15, 0, 0, 0));
+
+        // Sử dụng Region để đẩy nhãn tiền tệ sang phía bên phải
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
-        
+
         headerBox.getChildren().addAll(titleLabel, spacer, moneyLabel);
-        
-        // Buy/Sell Tabs
+
+        // Các tab chuyển đổi chế độ Mua/Bán
         HBox tabBox = new HBox(10);
         tabBox.setAlignment(Pos.CENTER);
-        
+
         buyTabButton = new Button(ShopConfig.TAB_BUY_TEXT);
         buyTabButton.setPrefSize(ShopConfig.TAB_BUTTON_WIDTH, ShopConfig.TAB_BUTTON_HEIGHT);
         buyTabButton.setFont(Font.font("Arial", FontWeight.BOLD, ShopConfig.TAB_BUTTON_FONT_SIZE));
         buyTabButton.setOnAction(e -> switchToBuyMode());
-        
+
         sellTabButton = new Button(ShopConfig.TAB_SELL_TEXT);
         sellTabButton.setPrefSize(ShopConfig.TAB_BUTTON_WIDTH, ShopConfig.TAB_BUTTON_HEIGHT);
         sellTabButton.setFont(Font.font("Arial", FontWeight.BOLD, ShopConfig.TAB_BUTTON_FONT_SIZE));
         sellTabButton.setOnAction(e -> switchToSellMode());
-        
+
         tabBox.getChildren().addAll(buyTabButton, sellTabButton);
-        updateTabStyles(); // Update tab styles
-        
-        // Configure Grid
+        updateTabStyles(); // Cập nhật giao diện tab
+
+        // Cấu hình lưới hiển thị vật phẩm
         itemGrid.setHgap(ShopConfig.SHOP_ITEM_SPACING);
         itemGrid.setVgap(ShopConfig.SHOP_ITEM_SPACING);
         itemGrid.setAlignment(Pos.CENTER);
-        
-        // Configure message label
+
+        // Cấu hình nhãn thông báo
         messageLabel.setFont(Font.font("Arial", ShopConfig.MESSAGE_FONT_SIZE));
         messageLabel.setVisible(false);
         messageLabel.setAlignment(Pos.CENTER);
-        
-        // Add components to contentBox
+
+        // Thêm các thành phần vào contentBox
         contentBox.getChildren().addAll(headerBox, tabBox, itemGrid, messageLabel);
-        
-        // Create and position Reroll button at bottom-right (fixed position)
-        // Add directly to StackPane, not in an overlay that blocks clicks
+
+        // Tạo và định vị nút Làm mới (Reroll) ở góc dưới bên phải
+        // Thêm trực tiếp vào StackPane, không nằm trong lớp overlay để tránh chặn thao tác chuột
         rerollButtonBox.setAlignment(Pos.CENTER);
         rerollButtonBox.setPrefSize(ShopConfig.SHOP_ITEM_SLOT_SIZE, ShopConfig.SHOP_ITEM_SLOT_SIZE);
-        rerollButtonBox.setMaxSize(Region.USE_PREF_SIZE, Region.USE_PREF_SIZE); // CRITICAL: Prevent StackPane from stretching/centering
+        rerollButtonBox.setMaxSize(Region.USE_PREF_SIZE, Region.USE_PREF_SIZE); // Ngăn StackPane tự động kéo giãn hoặc căn giữa
         rerollButtonBox.setStyle("-fx-background-color: rgba(100, 50, 0, 0.7); -fx-border-color: orange; -fx-border-width: 3;");
-        rerollButtonBox.setVisible(false); // Initially hidden, shown only in Buy mode
-        
-        // Position Reroll button at bottom-right using StackPane alignment and margin
+        rerollButtonBox.setVisible(false); // Mặc định ẩn, chỉ hiện trong chế độ Mua
+
+        // Định vị nút Reroll ở góc dưới bên phải sử dụng căn chỉnh của StackPane
         StackPane.setAlignment(rerollButtonBox, Pos.BOTTOM_RIGHT);
-        
-        // [SỬA] Tăng Bottom Margin lên 130px để đẩy Reroll Box lên cao hơn (giống padding item)
-        // Insets(Top, Right, Bottom, Left)
-        StackPane.setMargin(rerollButtonBox, new Insets(0, 80, 130, 0)); 
-        
-        // Add to StackPane (background at bottom, content in middle, reroll button on top)
+
+        // Điều chỉnh lề dưới để đẩy hộp Reroll lên vị trí mong muốn, ngang hàng với lưới vật phẩm
+        StackPane.setMargin(rerollButtonBox, new Insets(0, 80, 130, 0));
+
+        // Thêm vào StackPane (nền ở dưới cùng, nội dung ở giữa, nút reroll ở trên cùng)
         this.getChildren().addAll(bgView, contentBox, rerollButtonBox);
-        
-        // Hide shop initially
+
+        // Mặc định ẩn giao diện cửa hàng khi khởi tạo
         this.setVisible(false);
-        
-        // Update item list (default is Buy mode)
+
+        // Cập nhật danh sách vật phẩm (mặc định là chế độ Mua)
         updateItemList();
     }
-    
+
+    // ==============================================================================================
+    // XỬ LÝ CHUYỂN ĐỔI CHẾ ĐỘ (MUA/BÁN)
+    // ==============================================================================================
+
     /**
-     * Switch to Buy mode
+     * Chuyển sang chế độ Mua
      */
     private void switchToBuyMode() {
         if (isSellingMode) {
@@ -160,9 +174,9 @@ public class ShopView extends StackPane {
             updateItemList();
         }
     }
-    
+
     /**
-     * Switch to Sell mode
+     * Chuyển sang chế độ Bán
      */
     private void switchToSellMode() {
         if (!isSellingMode) {
@@ -171,24 +185,24 @@ public class ShopView extends StackPane {
             updateItemList();
         }
     }
-    
+
     /**
-     * Update styles for Buy/Sell tabs
+     * Cập nhật giao diện hiển thị cho các nút tab Mua/Bán
      */
     private void updateTabStyles() {
         if (isSellingMode) {
-            // Sell mode active
+            // Đang ở chế độ Bán
             buyTabButton.setStyle(getTabButtonStyle(false));
             sellTabButton.setStyle(getTabButtonStyle(true));
         } else {
-            // Buy mode active
+            // Đang ở chế độ Mua
             buyTabButton.setStyle(getTabButtonStyle(true));
             sellTabButton.setStyle(getTabButtonStyle(false));
         }
     }
-    
+
     /**
-     * Create style for tab button
+     * Tạo chuỗi định dạng CSS cho nút tab dựa trên trạng thái kích hoạt
      */
     private String getTabButtonStyle(boolean isActive) {
         Paint bgColor = isActive ? ShopConfig.TAB_ACTIVE_BG_COLOR : ShopConfig.TAB_INACTIVE_BG_COLOR;
@@ -198,45 +212,49 @@ public class ShopView extends StackPane {
                 (int)(((Color)bgColor).getBlue() * 255),
                 ShopConfig.TAB_BUTTON_FONT_SIZE);
     }
-    
+
+    // ==============================================================================================
+    // CẬP NHẬT DỮ LIỆU VÀ HIỂN THỊ DANH SÁCH (DATA UPDATES)
+    // ==============================================================================================
+
     /**
-     * Update item list displayed in shop (Buy or Sell mode)
+     * Cập nhật danh sách vật phẩm hiển thị trong cửa hàng (theo chế độ Mua hoặc Bán)
      */
     public void updateItemList() {
         itemGrid.getChildren().clear();
-        
+
         int col = 0;
         int row = 0;
-        
+
         if (!isSellingMode) {
-            // Buy Mode: Display items from daily stock
+            // Chế độ Mua: Hiển thị vật phẩm từ kho hàng hàng ngày
             List<ShopSlot> dailyStock = shopManager.getCurrentDailyStock();
             for (int slotIndex = 0; slotIndex < dailyStock.size(); slotIndex++) {
                 ShopSlot slot = dailyStock.get(slotIndex);
                 VBox itemBox = createBuyItemBox(slot, slotIndex);
                 itemGrid.add(itemBox, col, row);
-                
+
                 col++;
                 if (col >= ShopConfig.SHOP_GRID_COLS) {
                     col = 0;
                     row++;
                 }
             }
-            
-            // Reroll button is now positioned separately (not in grid) - only visible in Buy mode
-            updateRerollButton(true); // Show reroll button in Buy mode
+
+            // Nút Reroll được định vị riêng (không nằm trong lưới) - chỉ hiện ở chế độ Mua
+            updateRerollButton(true);
         } else {
-            // Sell Mode: Display items from Player's Hotbar
+            // Chế độ Bán: Hiển thị vật phẩm từ thanh công cụ (Hotbar) của người chơi
             ItemStack[] hotbarItems = shopManager.getPlayer().getHotbarItems();
             for (int slotIndex = 0; slotIndex < hotbarItems.length; slotIndex++) {
                 ItemStack stack = hotbarItems[slotIndex];
                 if (stack != null && stack.getQuantity() > 0) {
                     ItemType itemType = stack.getItemType();
-                    // Only show items with sellPrice > 0
+                    // Chỉ hiển thị các vật phẩm có giá bán lớn hơn 0
                     if (itemType.getSellPrice() > 0) {
                         VBox itemBox = createSellItemBox(stack, slotIndex);
                         itemGrid.add(itemBox, col, row);
-                        
+
                         col++;
                         if (col >= ShopConfig.SHOP_GRID_COLS) {
                             col = 0;
@@ -245,23 +263,23 @@ public class ShopView extends StackPane {
                     }
                 }
             }
-            
-            // Hide reroll button in Sell mode
+
+            // Ẩn nút Reroll trong chế độ Bán
             updateRerollButton(false);
         }
     }
-    
+
     /**
-     * Update Reroll button visibility and content
-     * @param visible true to show (Buy mode), false to hide (Sell mode)
+     * Cập nhật hiển thị và nội dung của nút Làm mới (Reroll)
+     * @param visible true để hiển thị (Chế độ Mua), false để ẩn (Chế độ Bán)
      */
     private void updateRerollButton(boolean visible) {
         rerollButtonBox.setVisible(visible);
         rerollButtonBox.setManaged(visible);
-        
+
         if (visible && rerollButtonBox.getChildren().isEmpty()) {
-            // Create reroll button content by copying from createRerollButtonBox logic
-            // Reroll icon - Use Money Icon from GUI icons
+            // Tạo nội dung nút Reroll nếu chưa có
+            // Icon Reroll - Sử dụng icon tiền tệ từ hệ thống GUI
             ImageView rerollIcon = new ImageView();
             Image moneyIconImage = assetManager.getGuiIcon("MONEY");
             if (moneyIconImage != null) {
@@ -270,57 +288,69 @@ public class ShopView extends StackPane {
             rerollIcon.setFitWidth(48);
             rerollIcon.setFitHeight(48);
             rerollIcon.setPreserveRatio(true);
-            
-            // Reroll label
+
+            // Nhãn Reroll
             Label rerollLabel = new Label("Reroll");
             rerollLabel.setFont(Font.font("Arial", FontWeight.BOLD, 14));
             rerollLabel.setTextFill(Color.WHITE);
-            
-            // Price label
+
+            // Nhãn giá tiền
             Label priceLabel = new Label("$" + ShopConfig.REROLL_PRICE);
             priceLabel.setFont(Font.font("Arial", FontWeight.BOLD, ShopConfig.PRICE_FONT_SIZE));
             priceLabel.setTextFill(Color.GOLD);
-            
-            // Reroll button
+
+            // Nút bấm Reroll
             Button rerollButton = new Button("Reroll");
             rerollButton.setPrefSize(ShopConfig.BUTTON_WIDTH, ShopConfig.BUTTON_HEIGHT);
             rerollButton.setStyle(getRerollButtonStyle());
-            
-            // Handle reroll button click
+
+            // Xử lý sự kiện click nút Reroll
             rerollButton.setOnAction(e -> {
                 String result = shopManager.rerollStock();
                 if (result == null) {
                     showMessage("Shop stock refreshed!", ShopConfig.SUCCESS_TEXT_COLOR);
                     updateMoneyDisplay();
-                    updateItemList(); // Refresh grid with new items
+                    updateItemList(); // Làm mới lưới vật phẩm với dữ liệu mới
                 } else {
                     showMessage(result, ShopConfig.ERROR_TEXT_COLOR);
                 }
             });
-            
+
             rerollButtonBox.getChildren().addAll(rerollIcon, rerollLabel, priceLabel, rerollButton);
         }
     }
-    
+
     /**
-     * Create VBox displaying a shop item in Buy mode (from daily stock)
+     * Cập nhật hiển thị số tiền của người chơi
+     */
+    public void updateMoneyDisplay() {
+        double money = shopManager.getPlayer().getMoney();
+        moneyLabel.setText("$" + (int)money);
+    }
+
+    // ==============================================================================================
+    // TẠO CÁC PHẦN TỬ GIAO DIỆN (ITEM RENDERING)
+    // ==============================================================================================
+
+    /**
+     * Tạo VBox hiển thị một vật phẩm trong chế độ Mua (từ kho hàng ngày)
      */
     private VBox createBuyItemBox(ShopSlot slot, int shopSlotIndex) {
         ItemType itemType = slot.getItemType();
         boolean isSoldOut = slot.isSoldOut();
-        
-        // Main container - StackPane to allow overlay of sale tag
+
+        // Container chính sử dụng StackPane để cho phép xếp chồng các lớp giao diện (như nhãn SALE)
         StackPane containerPane = new StackPane();
         containerPane.setPrefSize(ShopConfig.SHOP_ITEM_SLOT_SIZE, ShopConfig.SHOP_ITEM_SLOT_SIZE);
-        containerPane.setStyle("-fx-background-color: rgba(0, 0, 0, 0.4); -fx-border-color: gray; -fx-border-width: 2;"); // Reduced opacity to make icons pop out more
-        
-        // Content VBox - uniform padding for all items (no conditional padding)
+        containerPane.setStyle("-fx-background-color: rgba(0, 0, 0, 0.4); -fx-border-color: gray; -fx-border-width: 2;"); // Giảm độ mờ nền để làm nổi bật icon
+
+        // VBox nội dung - đệm đều cho tất cả các mục
         VBox itemBox = new VBox(8);
         itemBox.setAlignment(Pos.CENTER);
-        itemBox.setPadding(new Insets(5)); // Uniform padding for all items
-        itemBox.setMaxSize(Region.USE_PREF_SIZE, Region.USE_PREF_SIZE); // Prevent stretching to maintain uniform layout
-        
-        // Icon
+        itemBox.setPadding(new Insets(5));
+        itemBox.setMaxSize(Region.USE_PREF_SIZE, Region.USE_PREF_SIZE); // Ngăn việc kéo giãn để giữ bố cục đồng nhất
+
+        // Icon vật phẩm
         ImageView iconView = new ImageView();
         Image itemIcon = assetManager.getItemIcon(itemType);
         if (itemIcon != null) {
@@ -329,53 +359,52 @@ public class ShopView extends StackPane {
         iconView.setFitWidth(ShopConfig.ITEM_ICON_SIZE);
         iconView.setFitHeight(ShopConfig.ITEM_ICON_SIZE);
         iconView.setPreserveRatio(true);
-        
-        // Item name
+
+        // Tên vật phẩm
         Label nameLabel = new Label(itemType.getName());
         nameLabel.setFont(Font.font("Arial", FontWeight.BOLD, 11));
         nameLabel.setTextFill(Color.WHITE);
         nameLabel.setWrapText(true);
         nameLabel.setMaxWidth(ShopConfig.SHOP_ITEM_SLOT_SIZE - 10);
         nameLabel.setAlignment(Pos.CENTER);
-        
-        // Quantity label
+
+        // Nhãn số lượng
         Label qtyLabel = new Label("Quantity: " + slot.getQuantity());
         qtyLabel.setFont(Font.font("Arial", 10));
         qtyLabel.setTextFill(Color.LIGHTGRAY);
-        
-        // Price display (with discount if on sale)
+
+        // Hiển thị giá (có giảm giá nếu đang SALE)
         HBox priceBox = createBuyPriceBox(slot);
-        
-        // Buy button
+
+        // Nút mua
         Button buyButton = new Button(isSoldOut ? "SOLD OUT" : "Buy");
         buyButton.setPrefSize(ShopConfig.BUTTON_WIDTH, ShopConfig.BUTTON_HEIGHT);
         buyButton.setStyle(getButtonStyle());
-        buyButton.setDisable(isSoldOut); // Disable if sold out
-        
-        // Dim the slot if sold out
+        buyButton.setDisable(isSoldOut); // Vô hiệu hóa nếu đã hết hàng
+
+        // Làm mờ ô nếu hết hàng
         if (isSoldOut) {
             itemBox.setOpacity(0.5);
         }
-        
-        // Handle buy button click
+
+        // Xử lý sự kiện click nút mua
         buyButton.setOnAction(e -> {
             String result = shopManager.buyItem(shopSlotIndex, 1);
             if (result == null) {
                 showMessage("Bought " + itemType.getName() + "!", ShopConfig.SUCCESS_TEXT_COLOR);
                 updateMoneyDisplay();
-                updateItemList(); // Refresh to show updated quantity
-                // Sync hotbar immediately after successful purchase
+                updateItemList(); // Làm mới để hiển thị số lượng cập nhật
+                // Đồng bộ Hotbar ngay sau khi mua thành công
                 if (shopManager.getPlayer().getMainGameView() != null) {
                     shopManager.getPlayer().getMainGameView().updateHotbar();
                 }
             } else {
-                // All error messages from buyItem should be displayed in red (error color)
-                // Messages like "Inventory is full!", "Not enough money!", etc. are all errors
+                // Hiển thị thông báo lỗi
                 showMessage(result, ShopConfig.ERROR_TEXT_COLOR);
             }
         });
-        
-        // Buy All button - calculate max amount player can buy
+
+        // Nút Mua tất cả - tính toán số lượng tối đa người chơi có thể mua
         Button buyAllButton = null;
         if (!isSoldOut) {
             int maxBuyable = calculateMaxBuyable(slot, shopManager.getPlayer().getMoney());
@@ -383,7 +412,7 @@ public class ShopView extends StackPane {
                 buyAllButton = new Button("Buy All");
                 buyAllButton.setPrefSize(ShopConfig.BUTTON_WIDTH, ShopConfig.BUTTON_HEIGHT);
                 buyAllButton.setStyle(getButtonStyle());
-                
+
                 buyAllButton.setOnAction(e -> {
                     String result = shopManager.buyItem(shopSlotIndex, maxBuyable);
                     if (result == null) {
@@ -399,33 +428,33 @@ public class ShopView extends StackPane {
                 });
             }
         }
-        
+
         if (buyAllButton != null) {
             itemBox.getChildren().addAll(iconView, nameLabel, qtyLabel, priceBox, buyButton, buyAllButton);
         } else {
             itemBox.getChildren().addAll(iconView, nameLabel, qtyLabel, priceBox, buyButton);
         }
-        
-        // Add itemBox first to containerPane - center it
+
+        // Thêm itemBox vào containerPane và căn giữa
         StackPane.setAlignment(itemBox, Pos.CENTER);
         containerPane.getChildren().add(itemBox);
-        
-        // SALE tag as overlay at top-right corner (if on sale) - does not displace content
+
+        // Nhãn SALE đè lên góc trên bên phải (nếu đang giảm giá) - không làm lệch nội dung bên dưới
         if (slot.isOnSale() && !isSoldOut) {
             Label saleTag = new Label("SALE -" + (int)(slot.getDiscountRate() * 100) + "%");
             saleTag.setFont(Font.font("Arial", FontWeight.BOLD, 11));
-            saleTag.setTextFill(Color.WHITE); // White text
-            saleTag.setStyle("-fx-background-color: rgba(0, 200, 0, 0.9); -fx-padding: 4px 8px;"); // Green background
+            saleTag.setTextFill(Color.WHITE); // Chữ trắng
+            saleTag.setStyle("-fx-background-color: rgba(0, 200, 0, 0.9); -fx-padding: 4px 8px;"); // Nền xanh lá
             saleTag.setAlignment(Pos.CENTER);
-            saleTag.setMaxSize(Region.USE_PREF_SIZE, Region.USE_PREF_SIZE); // Prevent stretching
-            // Position at top-right corner as an overlay (does not affect itemBox layout)
+            saleTag.setMaxSize(Region.USE_PREF_SIZE, Region.USE_PREF_SIZE);
+            // Định vị ở góc trên bên phải như một lớp phủ
             StackPane.setAlignment(saleTag, Pos.TOP_RIGHT);
-            saleTag.setTranslateX(-5); // Small offset from right edge
-            saleTag.setTranslateY(5); // Small offset from top edge
-            containerPane.getChildren().add(saleTag); // Added after itemBox so it renders on top
+            saleTag.setTranslateX(-5); // Dịch chuyển nhỏ từ mép phải
+            saleTag.setTranslateY(5); // Dịch chuyển nhỏ từ mép trên
+            containerPane.getChildren().add(saleTag); // Thêm sau itemBox để hiển thị đè lên trên
         }
-        
-        // SOLD OUT overlay (if sold out)
+
+        // Lớp phủ SOLD OUT (nếu hết hàng)
         if (isSoldOut) {
             Label soldOutLabel = new Label("SOLD OUT");
             soldOutLabel.setFont(Font.font("Arial", FontWeight.BOLD, 14));
@@ -433,19 +462,19 @@ public class ShopView extends StackPane {
             soldOutLabel.setStyle("-fx-background-color: rgba(200, 0, 0, 0.9); -fx-padding: 5px;");
             containerPane.getChildren().add(soldOutLabel);
         }
-        
+
         return new VBox(containerPane);
     }
-    
+
     /**
-     * Create price box for Buy mode (shows discounted price if on sale)
+     * Tạo hộp giá cho chế độ Mua (hiển thị giá đã giảm nếu có khuyến mãi)
      */
     private HBox createBuyPriceBox(ShopSlot slot) {
         HBox priceBox = new HBox(5);
         priceBox.setAlignment(Pos.CENTER);
-        priceBox.setStyle("-fx-background-color: rgba(0, 0, 0, 0.6); -fx-background-radius: 10; -fx-padding: 2 8 2 8;"); // Styled background pill
-        
-        // Money icon from GUI icons (replaces Circle placeholder)
+        priceBox.setStyle("-fx-background-color: rgba(0, 0, 0, 0.6); -fx-background-radius: 10; -fx-padding: 2 8 2 8;"); // Tạo khung nền bo tròn
+
+        // Icon tiền tệ từ hệ thống GUI
         ImageView moneyIconView = new ImageView();
         Image moneyIconImage = assetManager.getGuiIcon("MONEY");
         if (moneyIconImage != null) {
@@ -454,51 +483,42 @@ public class ShopView extends StackPane {
         moneyIconView.setFitWidth(ShopConfig.COIN_ICON_SIZE);
         moneyIconView.setFitHeight(ShopConfig.COIN_ICON_SIZE);
         moneyIconView.setPreserveRatio(true);
-        
-        // Price label (green if on sale, gold if normal)
+
+        // Nhãn giá (màu xanh nếu giảm giá, màu vàng nếu giá thường)
         Label priceLabel = new Label(String.valueOf((int)slot.getPrice()));
         priceLabel.setFont(Font.font("Arial", FontWeight.BOLD, ShopConfig.PRICE_FONT_SIZE));
-        
+
         if (slot.isOnSale()) {
-            priceLabel.setTextFill(Color.GREEN); // Green for sale price
+            priceLabel.setTextFill(Color.GREEN);
         } else {
-            priceLabel.setTextFill(ShopConfig.PRICE_TEXT_COLOR); // Gold for normal price
+            priceLabel.setTextFill(ShopConfig.PRICE_TEXT_COLOR);
         }
         priceLabel.setStyle("-fx-effect: dropshadow(one-pass-box, black, 1, 0, 0, 0);");
-        
+
         priceBox.getChildren().addAll(moneyIconView, priceLabel);
-        
+
         return priceBox;
     }
-    
+
     /**
-     * Create style for reroll button (different color to distinguish)
-     */
-    private String getRerollButtonStyle() {
-        return String.format("-fx-background-color: #%02X%02X%02X; -fx-text-fill: white; -fx-font-size: %.0fpx; -fx-font-weight: bold;",
-                255, 140, 0, // Orange color
-                ShopConfig.BUTTON_FONT_SIZE);
-    }
-    
-    /**
-     * Create VBox displaying an item in Sell mode (from player inventory)
+     * Tạo VBox hiển thị một vật phẩm trong chế độ Bán (từ kho đồ người chơi)
      */
     private VBox createSellItemBox(ItemStack stack, int slotIndex) {
         ItemType itemType = stack.getItemType();
         int quantity = stack.getQuantity();
-        
-        // Main container - StackPane to match Buy Tab structure
+
+        // Container chính - Sử dụng StackPane để đồng bộ cấu trúc với Tab Mua
         StackPane containerPane = new StackPane();
         containerPane.setPrefSize(ShopConfig.SHOP_ITEM_SLOT_SIZE, ShopConfig.SHOP_ITEM_SLOT_SIZE);
-        containerPane.setStyle("-fx-background-color: rgba(0, 0, 0, 0.4); -fx-border-color: gray; -fx-border-width: 2;"); // Same style as Buy Tab
-        
-        // Content VBox - uniform padding for all items (same as Buy Tab)
+        containerPane.setStyle("-fx-background-color: rgba(0, 0, 0, 0.4); -fx-border-color: gray; -fx-border-width: 2;");
+
+        // VBox nội dung - đệm đều
         VBox itemBox = new VBox(8);
         itemBox.setAlignment(Pos.CENTER);
-        itemBox.setPadding(new Insets(5)); // Uniform padding to prevent buttons from touching edges
-        itemBox.setMaxSize(Region.USE_PREF_SIZE, Region.USE_PREF_SIZE); // Prevent stretching to maintain uniform layout
-        
-        // Icon
+        itemBox.setPadding(new Insets(5));
+        itemBox.setMaxSize(Region.USE_PREF_SIZE, Region.USE_PREF_SIZE);
+
+        // Icon vật phẩm
         ImageView iconView = new ImageView();
         Image itemIcon = assetManager.getItemIcon(itemType);
         if (itemIcon != null) {
@@ -507,31 +527,31 @@ public class ShopView extends StackPane {
         iconView.setFitWidth(ShopConfig.ITEM_ICON_SIZE);
         iconView.setFitHeight(ShopConfig.ITEM_ICON_SIZE);
         iconView.setPreserveRatio(true);
-        
-        // Item name + quantity (ensure text wrapping and centering)
+
+        // Tên vật phẩm + số lượng (đảm bảo xuống dòng và căn giữa)
         Label nameLabel = new Label(itemType.getName() + " x" + quantity);
-        nameLabel.setFont(Font.font("Arial", FontWeight.BOLD, 11)); // Match Buy Tab font size
+        nameLabel.setFont(Font.font("Arial", FontWeight.BOLD, 11));
         nameLabel.setTextFill(Color.WHITE);
         nameLabel.setWrapText(true);
         nameLabel.setMaxWidth(ShopConfig.SHOP_ITEM_SLOT_SIZE - 10);
         nameLabel.setAlignment(Pos.CENTER);
-        
-        // Sell price with coin icon
+
+        // Giá bán kèm icon tiền
         HBox priceBox = createPriceBox(itemType.getSellPrice());
-        
-        // Sell button
+
+        // Nút bán
         Button sellButton = new Button("Sell");
         sellButton.setPrefSize(ShopConfig.BUTTON_WIDTH, ShopConfig.BUTTON_HEIGHT);
         sellButton.setStyle(getButtonStyle());
-        
-        // Handle sell button click
+
+        // Xử lý sự kiện click nút bán
         sellButton.setOnAction(e -> {
             String result = shopManager.sellItem(slotIndex, 1);
             if (result == null) {
                 showMessage("Sold " + itemType.getName() + "!", ShopConfig.SUCCESS_TEXT_COLOR);
                 updateMoneyDisplay();
-                updateItemList(); // Refresh grid to update quantity
-                // Sync hotbar immediately after successful sale
+                updateItemList(); // Làm mới lưới để cập nhật số lượng
+                // Đồng bộ Hotbar ngay sau khi bán thành công
                 if (shopManager.getPlayer().getMainGameView() != null) {
                     shopManager.getPlayer().getMainGameView().updateHotbar();
                 }
@@ -539,14 +559,14 @@ public class ShopView extends StackPane {
                 showMessage(result, ShopConfig.ERROR_TEXT_COLOR);
             }
         });
-        
-        // Sell All button
+
+        // Nút Bán tất cả
         Button sellAllButton = null;
         if (quantity > 1) {
             sellAllButton = new Button("Sell All");
             sellAllButton.setPrefSize(ShopConfig.BUTTON_WIDTH, ShopConfig.BUTTON_HEIGHT);
             sellAllButton.setStyle(getButtonStyle());
-            
+
             sellAllButton.setOnAction(e -> {
                 String result = shopManager.sellItem(slotIndex, quantity);
                 if (result == null) {
@@ -561,57 +581,30 @@ public class ShopView extends StackPane {
                 }
             });
         }
-        
-        // Add components to itemBox (with proper spacing from VBox)
+
+        // Thêm các thành phần vào itemBox
         if (sellAllButton != null) {
             itemBox.getChildren().addAll(iconView, nameLabel, priceBox, sellButton, sellAllButton);
         } else {
             itemBox.getChildren().addAll(iconView, nameLabel, priceBox, sellButton);
         }
-        
-        // Add itemBox to containerPane - center it
+
+        // Thêm itemBox vào containerPane và căn giữa
         StackPane.setAlignment(itemBox, Pos.CENTER);
         containerPane.getChildren().add(itemBox);
-        
-        // Return VBox wrapping StackPane (to match Buy Tab return structure)
+
         return new VBox(containerPane);
     }
-    
+
     /**
-     * Calculate maximum number of items player can buy based on money and stock
-     * @param slot ShopSlot to buy from
-     * @param playerMoney Player's current money
-     * @return Maximum buyable quantity
-     */
-    private int calculateMaxBuyable(ShopSlot slot, double playerMoney) {
-        int stock = slot.getQuantity();
-        double price = slot.getPrice();
-        if (price <= 0) return 0;
-        
-        int maxAffordable = (int)(playerMoney / price);
-        return Math.min(stock, maxAffordable);
-    }
-    
-    /**
-     * Create style for button
-     */
-    private String getButtonStyle() {
-        return String.format("-fx-background-color: #%02X%02X%02X; -fx-text-fill: white; -fx-font-size: %.0fpx;",
-                (int)(((Color)ShopConfig.BUTTON_BG_COLOR).getRed() * 255),
-                (int)(((Color)ShopConfig.BUTTON_BG_COLOR).getGreen() * 255),
-                (int)(((Color)ShopConfig.BUTTON_BG_COLOR).getBlue() * 255),
-                ShopConfig.BUTTON_FONT_SIZE);
-    }
-    
-    /**
-     * Create HBox displaying price with coin icon (for Sell mode)
+     * Tạo HBox hiển thị giá kèm icon tiền (dùng cho chế độ Bán)
      */
     private HBox createPriceBox(int price) {
         HBox priceBox = new HBox(5);
         priceBox.setAlignment(Pos.CENTER);
-        priceBox.setStyle("-fx-background-color: rgba(0, 0, 0, 0.6); -fx-background-radius: 10; -fx-padding: 2 8 2 8;"); // Styled background pill
-        
-        // Money icon from GUI icons (replaces Circle placeholder)
+        priceBox.setStyle("-fx-background-color: rgba(0, 0, 0, 0.6); -fx-background-radius: 10; -fx-padding: 2 8 2 8;");
+
+        // Icon tiền tệ
         ImageView moneyIconView = new ImageView();
         Image moneyIconImage = assetManager.getGuiIcon("MONEY");
         if (moneyIconImage != null) {
@@ -620,58 +613,89 @@ public class ShopView extends StackPane {
         moneyIconView.setFitWidth(ShopConfig.COIN_ICON_SIZE);
         moneyIconView.setFitHeight(ShopConfig.COIN_ICON_SIZE);
         moneyIconView.setPreserveRatio(true);
-        
-        // Price text
+
+        // Văn bản giá tiền
         Label priceLabel = new Label(String.valueOf(price));
         priceLabel.setFont(Font.font("Arial", FontWeight.BOLD, ShopConfig.PRICE_FONT_SIZE));
         priceLabel.setTextFill(ShopConfig.PRICE_TEXT_COLOR);
         priceLabel.setStyle("-fx-effect: dropshadow(one-pass-box, black, 1, 0, 0, 0);");
-        
+
         priceBox.getChildren().addAll(moneyIconView, priceLabel);
-        
+
         return priceBox;
     }
-    
+
+    // ==============================================================================================
+    // CÁC HÀM TIỆN ÍCH (UTILITIES & HELPERS)
+    // ==============================================================================================
+
     /**
-     * Update player's money display
+     * Tính toán số lượng vật phẩm tối đa người chơi có thể mua dựa trên số tiền hiện có và lượng tồn kho
+     * @param slot Slot hàng hóa cần mua
+     * @param playerMoney Số tiền hiện tại của người chơi
+     * @return Số lượng tối đa có thể mua
      */
-    public void updateMoneyDisplay() {
-        double money = shopManager.getPlayer().getMoney();
-        moneyLabel.setText("$" + (int)money);
+    private int calculateMaxBuyable(ShopSlot slot, double playerMoney) {
+        int stock = slot.getQuantity();
+        double price = slot.getPrice();
+        if (price <= 0) return 0;
+
+        int maxAffordable = (int)(playerMoney / price);
+        return Math.min(stock, maxAffordable);
     }
-    
+
     /**
-     * Show message
+     * Tạo chuỗi định dạng CSS cho nút thông thường
+     */
+    private String getButtonStyle() {
+        return String.format("-fx-background-color: #%02X%02X%02X; -fx-text-fill: white; -fx-font-size: %.0fpx;",
+                (int)(((Color)ShopConfig.BUTTON_BG_COLOR).getRed() * 255),
+                (int)(((Color)ShopConfig.BUTTON_BG_COLOR).getGreen() * 255),
+                (int)(((Color)ShopConfig.BUTTON_BG_COLOR).getBlue() * 255),
+                ShopConfig.BUTTON_FONT_SIZE);
+    }
+
+    /**
+     * Tạo chuỗi định dạng CSS cho nút Reroll (màu khác biệt để dễ nhận biết)
+     */
+    private String getRerollButtonStyle() {
+        return String.format("-fx-background-color: #%02X%02X%02X; -fx-text-fill: white; -fx-font-size: %.0fpx; -fx-font-weight: bold;",
+                255, 140, 0, // Màu cam
+                ShopConfig.BUTTON_FONT_SIZE);
+    }
+
+    /**
+     * Hiển thị thông báo trạng thái
      */
     private void showMessage(String message, Paint color) {
         messageLabel.setText(message);
         messageLabel.setTextFill(color);
         messageLabel.setVisible(true);
-        
-        // Hide message after 3 seconds
+
+        // Ẩn thông báo sau 3 giây
         javafx.animation.PauseTransition pause = new javafx.animation.PauseTransition(
-            javafx.util.Duration.seconds(3)
+                javafx.util.Duration.seconds(3)
         );
         pause.setOnFinished(e -> messageLabel.setVisible(false));
         pause.play();
     }
-    
+
     /**
-     * Show/hide shop
+     * Bật/Tắt hiển thị cửa hàng
      */
     public void toggle() {
         boolean currentVisibility = this.isVisible();
         this.setVisible(!currentVisibility);
         if (!currentVisibility) {
-            updateMoneyDisplay(); // Update money when opening shop
-            updateItemList(); // Update item list when opening shop
-            // Ensure shop is always on top when opened
+            updateMoneyDisplay(); // Cập nhật tiền khi mở cửa hàng
+            updateItemList(); // Cập nhật danh sách vật phẩm khi mở
+            // Đảm bảo cửa hàng luôn nằm trên cùng khi được mở
             this.toFront();
         }
     }
-    
+
     /**
-     * Check if shop is currently visible
+     * Kiểm tra xem cửa hàng có đang hiển thị hay không
      */
     public boolean isShopVisible() {
         return this.isVisible();

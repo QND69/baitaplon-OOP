@@ -67,14 +67,3 @@ public class WeatherManager {
         this.currentWeather = weather;
     }
 }
-
-
-
-
-
-
-
-
-
-
-

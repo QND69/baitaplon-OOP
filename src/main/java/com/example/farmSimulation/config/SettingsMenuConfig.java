@@ -34,19 +34,66 @@ public class SettingsMenuConfig {
     public static final double DEFAULT_BRIGHTNESS = GameLogicConfig.DEFAULT_BRIGHTNESS; // 100%
     public static final double BRIGHTNESS_MIN = GameLogicConfig.MIN_BRIGHTNESS; // 0%
     public static final double BRIGHTNESS_MAX = GameLogicConfig.MAX_BRIGHTNESS; // 100%
+    public static final String BRIGHTNESS_LABEL = "Brightness:";
 
     // --- Cấu hình Layout ---
     public static final double SETTINGS_MENU_WIDTH_NEW = 500.0; // Tăng width cho GridPane
     public static final double SETTINGS_MENU_HEIGHT_NEW = 600.0; // Tăng height cho GridPane
+    public static final String GAME_MENU_LABEL_TEXT = "Game Menu";
+    public static final String PLAYER_LABEL_PREFIX = "Player: ";
+    public static final String LEVEL_LABEL_PREFIX = "Level: ";
+    public static final double SLIDER_WIDTH = 200.0;
+    public static final double BUTTON_BOX_SPACING = 10.0;
+    public static final double CONTENT_AREA_WIDTH_PADDING = 60.0;
+    public static final double CONTENT_AREA_HEIGHT = 400.0;
+    public static final double NAV_BAR_SPACING = 20.0;
 
-    // [MỚI] Text cho nút Save/Load (Tránh hardcode)
-    public static final String SAVE_BUTTON_TEXT = "SAVE GAME";
+    // --- Tab Names ---
+    public static final String TAB_GENERAL = "General";
+    public static final String TAB_CONTROLS = "Controls";
+    public static final String TAB_TUTORIAL = "Tutorial";
+
+    // --- Controls Strings ---
+    public static final String CONTROLS_TITLE = "Key Bindings:";
+    public static final String ACTION_MOVE_UP = "Move Up";
+    public static final String ACTION_MOVE_LEFT = "Move Left";
+    public static final String ACTION_MOVE_DOWN = "Move Down";
+    public static final String ACTION_MOVE_RIGHT = "Move Right";
+    public static final String ACTION_SHOP = "Open / Close Shop";
+    public static final String ACTION_DROP = "Drop Item";
+    public static final String ACTION_QUEST = "Open / Close Quest Board";
+    public static final String ACTION_PAUSE = "Pause / Resume Game";
+    public static final String ACTION_HOTBAR = "Select Hotbar Slot";
+    public static final String ACTION_PRIMARY = "Use Tool / Interact";
+    public static final String ACTION_SECONDARY = "Toggle Fence / Eat Food";
+    public static final String KEY_NUMS = "1 - 9";
+    public static final String KEY_MOUSE_LEFT = "Mouse Left";
+    public static final String KEY_MOUSE_RIGHT = "Mouse Right";
+
+    // --- CSS Styles ---
+    public static final String NAV_BUTTON_ACTIVE_STYLE =
+            "-fx-background-color: transparent;" +
+                    "-fx-text-fill: white;" +
+                    "-fx-font-weight: bold;" +
+                    "-fx-border-color: transparent transparent white transparent;" +
+                    "-fx-border-width: 0 0 2 0;" +
+                    "-fx-padding: 5px;";
+
+    public static final String NAV_BUTTON_INACTIVE_STYLE =
+            "-fx-background-color: transparent;" +
+                    "-fx-text-fill: #aaaaaa;" +
+                    "-fx-font-weight: normal;" +
+                    "-fx-border-width: 0;" +
+                    "-fx-padding: 5px;";
+
+    // Text cho nút Save/Load (Tránh hardcode)
+    public static final String SAVE_BUTTON_TEXT_NEW = "SAVE GAME";
     public static final String LOAD_BUTTON_TEXT = "LOAD GAME";
 
-    // [MỚI] Text cho màn hình chờ
+    // Text cho màn hình chờ
     public static final String START_NEW_GAME_TEXT = "START NEW GAME";
 
-    // [MỚI] Nội dung hướng dẫn chơi game chi tiết (Tutorial)
+    // Nội dung hướng dẫn chơi game chi tiết (Tutorial)
     public static final String TUTORIAL_TEXT =
             "WELCOME TO FARM SIMULATION!\n\n" +
                     "GOAL: Manage your farm, grow crops, raise animals, and complete daily quests.\n\n" +

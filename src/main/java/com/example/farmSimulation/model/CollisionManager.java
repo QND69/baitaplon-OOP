@@ -1,13 +1,13 @@
 package com.example.farmSimulation.model;
 
 import com.example.farmSimulation.config.CropConfig;
-import com.example.farmSimulation.config.FenceConfig;  
+import com.example.farmSimulation.config.FenceConfig;
 import com.example.farmSimulation.config.TreeConfig;
 import com.example.farmSimulation.config.WorldConfig;
 
 /**
- * Class quản lý collision (va chạm) cho player.
- * Kiểm tra xem player có thể di chuyển đến một vị trí không.
+ * Lớp quản lý va chạm (collision) cho người chơi.
+ * Chịu trách nhiệm kiểm tra xem người chơi có thể di chuyển đến một vị trí cụ thể hay không.
  */
 public class CollisionManager {
     private final WorldMap worldMap;
@@ -17,139 +17,139 @@ public class CollisionManager {
     }
 
     /**
-     * Kiểm tra xem một vị trí có thể đi qua được không
-     * 
-     * @param tileX Tọa độ X (tile)
-     * @param tileY Tọa độ Y (tile)
-     * @return true nếu có thể đi qua, false nếu bị chặn
+     * Kiểm tra xem một vị trí tọa độ cụ thể có thể đi qua được không.
+     * * @param tileX Tọa độ X thực (tính theo pixel)
+     * @param tileY Tọa độ Y thực (tính theo pixel)
+     * @return true nếu có thể đi qua, false nếu bị chặn bởi vật cản
      */
     public boolean canPassThrough(double tileX, double tileY) {
         int col = (int) Math.floor(tileX / WorldConfig.TILE_SIZE);
         int row = (int) Math.floor(tileY / WorldConfig.TILE_SIZE);
 
         TileData data = worldMap.getTileData(col, row);
-        
-        // Kiểm tra hàng rào
+
+        // Kiểm tra va chạm với hàng rào
         if (data.getFenceData() != null && data.getFenceData().isSolid()) {
-            // 1. Tính toán Hitbox Trung Tâm (Cái cọc)
+            // 1. Tính toán vùng va chạm trung tâm (cột rào)
             double tileWorldX = col * WorldConfig.TILE_SIZE;
             double tileWorldY = row * WorldConfig.TILE_SIZE;
-            
+
             double tileCenterX = tileWorldX + (WorldConfig.TILE_SIZE / 2.0);
             double tileBottomY = tileWorldY + WorldConfig.TILE_SIZE;
 
-            // Tâm của cọc rào
+            // Xác định tâm của cột hàng rào
             double centerHitboxX = tileCenterX;
-            double centerHitboxY = tileBottomY 
-                                   - (FenceConfig.FENCE_HITBOX_HEIGHT / 2.0) 
-                                   - FenceConfig.FENCE_HITBOX_Y_OFFSET_FROM_BOTTOM;
-            
+            double centerHitboxY = tileBottomY
+                    - (FenceConfig.FENCE_HITBOX_HEIGHT / 2.0)
+                    - FenceConfig.FENCE_HITBOX_Y_OFFSET_FROM_BOTTOM;
+
             double halfW = FenceConfig.FENCE_HITBOX_WIDTH / 2.0;
             double halfH = FenceConfig.FENCE_HITBOX_HEIGHT / 2.0;
 
-            // --- CHECK 1: Cọc Trung Tâm ---
+            // --- Kiểm tra 1: Cột trung tâm ---
             if (tileX >= centerHitboxX - halfW && tileX <= centerHitboxX + halfW &&
-                tileY >= centerHitboxY - halfH && tileY <= centerHitboxY + halfH) {
+                    tileY >= centerHitboxY - halfH && tileY <= centerHitboxY + halfH) {
                 return false;
             }
 
-            // 2. Tính toán các "Cánh tay" nối (Rails) dựa trên Pattern
+            // 2. Tính toán các thanh nối dựa trên mẫu hình dạng của hàng rào
             int pattern = data.getFenceData().getTilePattern();
-            
-            // Bit 0: Top, Bit 1: Right, Bit 2: Bottom, Bit 3: Left
+
+            // Bit 0: Trên, Bit 1: Phải, Bit 2: Dưới, Bit 3: Trái
             boolean hasTop = (pattern & 1) != 0;
             boolean hasRight = (pattern & 2) != 0;
             boolean hasBottom = (pattern & 4) != 0;
             boolean hasLeft = (pattern & 8) != 0;
 
-            // --- CHECK 2: Tay nối sang TRÁI ---
+            // --- Kiểm tra 2: Thanh nối sang TRÁI ---
             if (hasLeft) {
-                // Vùng từ mép trái Tile đến mép trái Cọc trung tâm
-                double railLeftX = tileWorldX; 
+                // Vùng từ mép trái của ô lưới đến mép trái của cột trung tâm
+                double railLeftX = tileWorldX;
                 double railRightX = centerHitboxX - halfW;
-                
+
                 if (tileX >= railLeftX && tileX <= railRightX &&
-                    tileY >= centerHitboxY - halfH && tileY <= centerHitboxY + halfH) { // Y giữ nguyên theo cọc
+                        tileY >= centerHitboxY - halfH && tileY <= centerHitboxY + halfH) { // Tọa độ Y giữ nguyên theo cột
                     return false;
                 }
             }
 
-            // --- CHECK 3: Tay nối sang PHẢI ---
+            // --- Kiểm tra 3: Thanh nối sang PHẢI ---
             if (hasRight) {
-                // Vùng từ mép phải Cọc trung tâm đến mép phải Tile
-                double railLeftX = centerHitboxX + halfW; 
+                // Vùng từ mép phải của cột trung tâm đến mép phải của ô lưới
+                double railLeftX = centerHitboxX + halfW;
                 double railRightX = tileWorldX + WorldConfig.TILE_SIZE;
 
                 if (tileX >= railLeftX && tileX <= railRightX &&
-                    tileY >= centerHitboxY - halfH && tileY <= centerHitboxY + halfH) {
+                        tileY >= centerHitboxY - halfH && tileY <= centerHitboxY + halfH) {
                     return false;
                 }
             }
 
-            // --- CHECK 4: Tay nối lên TRÊN (Top) ---
+            // --- Kiểm tra 4: Thanh nối lên TRÊN ---
             if (hasTop) {
-                // Vùng từ mép trên Tile đến mép trên Cọc
-                // (Lưu ý: rào dọc thường mỏng hơn rào ngang một chút về visual, nhưng để chặn thì cứ lấy full width cọc)
+                // Vùng từ mép trên của ô lưới đến mép trên của cột
+                // Lưu ý: về mặt hình ảnh thì rào dọc thường mỏng hơn rào ngang một chút, nhưng để xử lý va chạm thì ta lấy chiều rộng bằng với cột rào
                 double railTopY = tileWorldY;
                 double railBottomY = centerHitboxY - halfH;
 
                 if (tileX >= centerHitboxX - halfW && tileX <= centerHitboxX + halfW &&
-                    tileY >= railTopY && tileY <= railBottomY) {
+                        tileY >= railTopY && tileY <= railBottomY) {
                     return false;
                 }
             }
 
-            // --- CHECK 5: Tay nối xuống DƯỚI (Bottom) ---
+            // --- Kiểm tra 5: Thanh nối xuống DƯỚI ---
             if (hasBottom) {
                 double railTopY = centerHitboxY + halfH;
                 double railBottomY = tileWorldY + WorldConfig.TILE_SIZE;
 
                 if (tileX >= centerHitboxX - halfW && tileX <= centerHitboxX + halfW &&
-                    tileY >= railTopY && tileY <= railBottomY) {
+                        tileY >= railTopY && tileY <= railBottomY) {
                     return false;
                 }
             }
         }
-        
-        // Kiểm tra cây
-        // [SỬA] Hạt giống (stage 0) không có collision, có thể đi qua được
-        // Chỉ cây ở stage > 0 mới có collision
+
+        // Kiểm tra va chạm với cây trồng
+        // Hạt giống (giai đoạn 0) không có va chạm, nhân vật có thể đi qua được
+        // Chỉ cây ở giai đoạn lớn hơn 0 mới có va chạm
         if (data.getTreeData() != null && data.getBaseTileType() == Tile.TREE) {
             TreeData tree = data.getTreeData();
-            // Hạt giống (stage 0) không có collision, có thể đi qua
-            // Chỉ cây ở stage > 0 mới có collision
+            // Hạt giống (giai đoạn 0) cho phép đi qua
+            // Chỉ bắt đầu chặn khi cây đã lớn hơn hạt giống
             if (tree.getGrowthStage() > TreeConfig.TREE_SEED_STAGE) {
                 double tileWorldX = col * WorldConfig.TILE_SIZE;
                 double tileWorldY = row * WorldConfig.TILE_SIZE;
-    
-                // [LOGIC CHUẨN]
-                // Đáy ô Tile là (tileWorldY + 64).
-                // Cây được vẽ dịch lên 16px (CROP_Y_OFFSET).
-                // => Đáy thật sự của cây (nơi cần chặn) = Đáy Tile - 16px.
+
+                // Logic tính toán vị trí chuẩn:
+                // Đáy của ô lưới là (tileWorldY + 64).
+                // Hình ảnh cây được vẽ dịch lên trên 16px.
+                // Do đó đáy thực tế của cây (nơi cần chặn va chạm) là đáy ô lưới trừ đi 16px.
                 double visualTreeBottomY = (tileWorldY + WorldConfig.TILE_SIZE) - CropConfig.CROP_Y_OFFSET;
-                
-                // Tâm Hitbox X: Giữa ô
+
+                // Tâm vùng va chạm theo trục X: Giữa ô lưới
                 double hitboxCenterX = tileWorldX + WorldConfig.TILE_SIZE / 2.0;
-                
-                // Tâm Hitbox Y: Từ đáy thật sự, nhích lên nửa chiều cao hitbox
-                // [SỬA] Thêm "- TreeConfig.TREE_HITBOX_Y_OFFSET_FROM_BOTTOM" vào công thức
-                // Để đẩy tâm hitbox lên cao hơn
-                double hitboxCenterY = visualTreeBottomY 
-                - (TreeConfig.TREE_HITBOX_HEIGHT / 2.0) 
-                - TreeConfig.TREE_HITBOX_Y_OFFSET_FROM_BOTTOM;
-    
+
+                // Tâm vùng va chạm theo trục Y: Từ đáy thực tế, nhích lên một nửa chiều cao vùng va chạm
+                // Trừ thêm một khoảng offset để đẩy tâm vùng va chạm lên cao hơn cho khớp với gốc cây
+                double hitboxCenterY = visualTreeBottomY
+                        - (TreeConfig.TREE_HITBOX_HEIGHT / 2.0)
+                        - TreeConfig.TREE_HITBOX_Y_OFFSET_FROM_BOTTOM;
+
                 double halfWidth = TreeConfig.TREE_HITBOX_WIDTH / 2.0;
                 double halfHeight = TreeConfig.TREE_HITBOX_HEIGHT / 2.0;
-                
-                // Kiểm tra AABB (Axis-Aligned Bounding Box)
-                if (tileX >= hitboxCenterX - halfWidth && 
-                    tileX <= hitboxCenterX + halfWidth &&
-                    tileY >= hitboxCenterY - halfHeight && 
-                    tileY <= hitboxCenterY + halfHeight) {
-                    return false; // Va chạm -> Chặn lại
+
+                // Kiểm tra hộp giới hạn thẳng hàng với trục (AABB)
+                if (tileX >= hitboxCenterX - halfWidth &&
+                        tileX <= hitboxCenterX + halfWidth &&
+                        tileY >= hitboxCenterY - halfHeight &&
+                        tileY <= hitboxCenterY + halfHeight) {
+                    return false; // Phát hiện va chạm -> Chặn lại
                 }
             }
         }
+
+        // Kiểm tra va chạm với nước (không thể đi xuống nước)
         if (data.getBaseTileType() == Tile.WATER) {
             return false;
         }
@@ -158,41 +158,37 @@ public class CollisionManager {
     }
 
     /**
-     * Kiểm tra collision với một bounding box (hình chữ nhật)
-     * 
-     * @param centerX Tọa độ X trung tâm
-     * @param centerY Tọa độ Y trung tâm
-     * @param width Chiều rộng
-     * @param height Chiều cao
-     * @return true nếu có collision, false nếu không
+     * Kiểm tra va chạm với một hộp giới hạn hình chữ nhật (Bounding Box).
+     * * @param centerX Tọa độ X trung tâm của hộp
+     * @param centerY Tọa độ Y trung tâm của hộp
+     * @param width Chiều rộng hộp
+     * @param height Chiều cao hộp
+     * @return true nếu có va chạm, false nếu không
      */
     /**
-     * [SỬA] Kiểm tra va chạm kỹ hơn (thêm điểm giữa và các cạnh)
-     * Để khắc phục lỗi "lách qua" khi hitbox cây nhỏ.
+     * Kiểm tra va chạm kỹ hơn bằng cách thêm điểm giữa và các cạnh.
+     * Việc này giúp khắc phục lỗi nhân vật đi xuyên qua vật cản khi vùng va chạm của cây quá nhỏ.
      */
     public boolean checkCollision(double centerX, double centerY, double width, double height) {
         double halfW = width / 2.0;
         double halfH = height / 2.0;
 
-        // 1. Kiểm tra 4 góc (Cũ)
-        if (!canPassThrough(centerX - halfW, centerY - halfH)) return true; // Top-Left
-        if (!canPassThrough(centerX + halfW, centerY - halfH)) return true; // Top-Right
-        if (!canPassThrough(centerX - halfW, centerY + halfH)) return true; // Bottom-Left
-        if (!canPassThrough(centerX + halfW, centerY + halfH)) return true; // Bottom-Right
+        // 1. Kiểm tra 4 góc
+        if (!canPassThrough(centerX - halfW, centerY - halfH)) return true; // Góc trên trái
+        if (!canPassThrough(centerX + halfW, centerY - halfH)) return true; // Góc trên phải
+        if (!canPassThrough(centerX - halfW, centerY + halfH)) return true; // Góc dưới trái
+        if (!canPassThrough(centerX + halfW, centerY + halfH)) return true; // Góc dưới phải
 
-        // 2. [MỚI - QUAN TRỌNG] Kiểm tra 4 trung điểm các cạnh (Mid-points)
-        // Giúp chặn việc đi xuyên khi vật cản nhỏ hơn chiều rộng player
-        if (!canPassThrough(centerX, centerY - halfH)) return true; // Top-Mid
-        if (!canPassThrough(centerX, centerY + halfH)) return true; // Bottom-Mid
-        if (!canPassThrough(centerX - halfW, centerY)) return true; // Left-Mid
-        if (!canPassThrough(centerX + halfW, centerY)) return true; // Right-Mid
-        
-        // 3. [MỚI] Kiểm tra tâm (Center) - Dự phòng
+        // 2. Kiểm tra 4 trung điểm của các cạnh (quan trọng)
+        // Giúp chặn việc đi xuyên khi vật cản nhỏ hơn chiều rộng của người chơi
+        if (!canPassThrough(centerX, centerY - halfH)) return true; // Giữa cạnh trên
+        if (!canPassThrough(centerX, centerY + halfH)) return true; // Giữa cạnh dưới
+        if (!canPassThrough(centerX - halfW, centerY)) return true; // Giữa cạnh trái
+        if (!canPassThrough(centerX + halfW, centerY)) return true; // Giữa cạnh phải
+
+        // 3. Kiểm tra tâm (dự phòng)
         if (!canPassThrough(centerX, centerY)) return true;
 
         return false;
     }
 }
-
-
-

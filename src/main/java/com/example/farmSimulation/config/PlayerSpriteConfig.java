@@ -4,6 +4,7 @@ import javafx.scene.paint.Color;
 
 // Chứa các hằng số cấu hình cho Sprite và Animation của Player
 public class PlayerSpriteConfig {
+
     // --- Cấu hình MẶC ĐỊNH ---
     public static final double BASE_PLAYER_FRAME_WIDTH = 192;
     public static final double BASE_PLAYER_FRAME_HEIGHT = 192;
@@ -53,7 +54,7 @@ public class PlayerSpriteConfig {
     /** Padding đáy để căn chỉnh hitbox collision (tính từ đáy sprite lên trên, đã scale) */
     public static final double COLLISION_BOX_BOTTOM_PADDING = BASE_COLLISION_BOX_BOTTOM_PADDING * BASE_PLAYER_FRAME_SCALE;
 
-    // [MỚI] Offset tâm hoạt động đã scale
+    // Offset tâm hoạt động đã scale
     public static final double INTERACTION_CENTER_Y_OFFSET = BASE_INTERACTION_CENTER_Y_OFFSET * BASE_PLAYER_FRAME_SCALE;
 
     // --- Hằng số Debug ---

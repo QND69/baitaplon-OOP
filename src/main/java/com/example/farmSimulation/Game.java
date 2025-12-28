@@ -14,8 +14,8 @@ import javafx.scene.Scene;
 import javafx.stage.Stage;
 
 /**
- * Class chịu trách nhiệm khởi tạo và liên kết tất cả
- * các thành phần Model, View, Controller.
+ * Lớp chịu trách nhiệm khởi tạo và liên kết tất cả các thành phần
+ * theo mô hình Model, View, Controller (MVC).
  */
 public class Game {
     private Stage primaryStage;
@@ -23,50 +23,53 @@ public class Game {
     private Player player;
     private WorldMap worldMap;
 
+    /**
+     * Điểm bắt đầu của trò chơi, tải tài nguyên và hiển thị menu.
+     */
     public void start(Stage primaryStage) {
         this.primaryStage = primaryStage;
 
-        // Tải tài nguyên (Assets) - Chỉ tải 1 lần khi ứng dụng bắt đầu
+        // Tải toàn bộ tài nguyên hình ảnh một lần duy nhất khi ứng dụng bắt đầu
         imageManager = new ImageManager();
         imageManager.loadAssets();
 
-        // Icon hiển thị game (Application Icon)
+        // Thiết lập biểu tượng cho cửa sổ ứng dụng
         primaryStage.getIcons().add(imageManager.getTexture(AssetPaths.LOGO));
 
-        // Hiển thị Main Menu
+        // Hiển thị màn hình menu chính
         showMainMenu();
     }
 
     /**
-     * [MỚI] Hàm hiển thị màn hình chính (Character Creation / Menu)
-     * Được tách ra để có thể gọi lại khi Game Over
+     * Hiển thị màn hình chính (Tạo nhân vật hoặc Menu).
+     * Phương thức này được tách riêng để có thể gọi lại khi trò chơi kết thúc.
      */
     private void showMainMenu() {
-        // Khởi tạo Model (Dữ liệu) mới cho phiên chơi mới
-        // Điều này đảm bảo khi start game mới, dữ liệu cũ không còn tồn đọng
+        // Khởi tạo lại các đối tượng Model cho phiên chơi mới
+        // Việc này đảm bảo dữ liệu cũ không bị lưu lại khi bắt đầu game mới
         player = new Player();
         worldMap = new WorldMap();
 
-        // Tạo và hiển thị Character Creation Screen
+        // Tạo và hiển thị giao diện tạo nhân vật
         CharacterCreationView characterCreationView = new CharacterCreationView();
 
-        // Set callback khi người chơi click "Start New Game"
+        // Thiết lập hành động khi người chơi nhấn nút Bắt đầu game mới
         characterCreationView.setOnStartGame((name, gender) -> {
-            // Cập nhật Player với thông tin từ Character Creation
+            // Cập nhật thông tin người chơi từ dữ liệu nhập vào
             player.setName(name);
             player.setGender(gender);
 
-            // Khởi tạo game và chuyển sang MainGameView (chế độ New Game)
+            // Khởi tạo và bắt đầu game ở chế độ chơi mới
             initializeAndStartGame(false);
         });
 
-        // Set callback khi người chơi click "Load Game"
+        // Thiết lập hành động khi người chơi nhấn nút Tải game
         characterCreationView.setOnLoadGame(() -> {
-            // Khởi tạo game và chuyển sang MainGameView (chế độ Load Game)
+            // Khởi tạo và bắt đầu game ở chế độ tải dữ liệu đã lưu
             initializeAndStartGame(true);
         });
 
-        // Hiển thị Character Creation Scene
+        // Hiển thị cảnh tạo nhân vật lên màn hình
         Scene characterCreationScene = characterCreationView.createScene();
         primaryStage.setTitle("Farm Simulation - Character Creation");
         primaryStage.setScene(characterCreationScene);
@@ -74,26 +77,34 @@ public class Game {
     }
 
     /**
-     * Khởi tạo và bắt đầu game sau khi character creation hoàn tất
-     * @param loadFromSave Nếu true, sẽ tải dữ liệu từ file save thay vì dùng mặc định
+     * Khởi tạo các thành phần cốt lõi và bắt đầu vòng lặp game.
+     * @param loadFromSave Nếu true, dữ liệu sẽ được tải từ file lưu trữ thay vì khởi tạo mặc định.
      */
     private void initializeAndStartGame(boolean loadFromSave) {
-        // Khởi tạo View (Hình ảnh)
-        // PlayerView được tạo và nhận Image từ AssetManager
+        // ----------------------------------------------------------------
+        // 1. KHỞI TẠO CÁC THÀNH PHẦN VIEW (GIAO DIỆN)
+        // ----------------------------------------------------------------
+
+        // Tạo PlayerView và cung cấp texture từ ImageManager
         PlayerView playerView = new PlayerView(
-                imageManager.getTexture(AssetPaths.PLAYER_SHEET), imageManager.getTexture(AssetPaths.PLAYER_ACTIONS_SHEET)
+                imageManager.getTexture(AssetPaths.PLAYER_SHEET),
+                imageManager.getTexture(AssetPaths.PLAYER_ACTIONS_SHEET)
         );
 
-        // Khởi tạo HotbarView
+        // Tạo HotbarView (thanh công cụ)
         HotbarView hotbarView = new HotbarView(player, imageManager);
 
-        // MainGameView nhận AssetManager để vẽ map
+        // Tạo MainGameView và truyền các thành phần phụ thuộc cần thiết để vẽ bản đồ
         MainGameView mainGameView = new MainGameView(imageManager, worldMap, hotbarView);
 
-        // Khởi tạo Controller (Input)
+        // ----------------------------------------------------------------
+        // 2. KHỞI TẠO CONTROLLER VÀ MANAGER (LOGIC)
+        // ----------------------------------------------------------------
+
+        // Khởi tạo Controller để xử lý đầu vào từ người dùng
         GameController gameController = new GameController();
 
-        // Khởi tạo "Bộ não Logic" (Game Manager)
+        // Khởi tạo GameManager - bộ não logic của trò chơi
         GameManager gameManager = new GameManager(
                 player,
                 worldMap,
@@ -102,26 +113,34 @@ public class Game {
                 gameController
         );
 
-        // Liên kết (Wiring)
-        // Controller cần biết về GameManager để gọi logic
+        // ----------------------------------------------------------------
+        // 3. LIÊN KẾT CÁC THÀNH PHẦN (WIRING)
+        // ----------------------------------------------------------------
+
+        // Cung cấp GameManager cho Controller để gọi các hàm xử lý logic
         gameController.setGameManager(gameManager);
-        // Controller cần biết về MainGameView để toggle shop
+
+        // Cung cấp MainGameView cho Controller để xử lý các tác vụ giao diện như bật tắt cửa hàng
         gameController.setMainGameView(mainGameView);
 
-        // Liên kết callback kéo thả item: HotbarView -> GameManager
-        // Khi UI phát hiện swap, nó gọi hàm swap của GameManager
+        // Thiết lập sự kiện kéo thả vật phẩm trong Hotbar
+        // Khi giao diện phát hiện hành động hoán đổi, nó sẽ gọi logic xử lý trong GameManager
         hotbarView.setOnSwapListener((indexA, indexB) -> {
             gameManager.swapHotbarItems(indexA, indexB);
         });
 
-        // [QUAN TRỌNG - SỬA LỖI] Đăng ký Handler để quay về Main Menu
-        // Khi GameManager gọi returnToMainMenu(), hàm này sẽ chạy
+        // Đăng ký bộ xử lý sự kiện để quay về Menu chính
+        // Khi GameManager gọi hàm returnToMainMenu, phương thức showMainMenu sẽ được kích hoạt
         gameManager.setOnReturnToMainMenuHandler(() -> {
             showMainMenu();
         });
 
-        // Khởi tạo UI (Truyền các thành phần cần thiết)
-        // UI cần Controller (để lắng nghe input) và PlayerSprite (để vẽ)
+        // ----------------------------------------------------------------
+        // 4. THIẾT LẬP GIAO DIỆN VÀ BẮT ĐẦU GAME
+        // ----------------------------------------------------------------
+
+        // Khởi tạo giao diện người dùng
+        // Cần truyền Controller để lắng nghe sự kiện và các thông số đồ họa của nhân vật để hiển thị
         mainGameView.initUI(
                 primaryStage,
                 gameController,
@@ -132,21 +151,21 @@ public class Game {
                 playerView.getDebugCollisionHitbox()
         );
 
-        // Liên kết GameManager vào View
+        // Gắn GameManager vào View để View có thể truy cập dữ liệu khi cần
         mainGameView.setGameManager(gameManager);
 
-        // Nếu là Load Game, thực hiện load dữ liệu TRƯỚC khi start game loop
+        // Nếu là chế độ Tải game, thực hiện nạp dữ liệu từ file lưu trữ trước khi bắt đầu vòng lặp game
         if (loadFromSave) {
             gameManager.loadGameData();
         }
 
-        // Bắt đầu Game Loop
+        // Bắt đầu vòng lặp chính của trò chơi
         gameManager.startGame();
 
         // Bắt đầu phát nhạc nền
         gameManager.getAudioManager().playMusic(AssetPaths.BACKGROUND_MUSIC);
 
-        // Cập nhật title
+        // Cập nhật tiêu đề cửa sổ
         primaryStage.setTitle("Farm Simulation");
     }
 }

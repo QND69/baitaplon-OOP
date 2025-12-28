@@ -20,26 +20,26 @@ import javafx.scene.text.FontWeight;
 import javafx.scene.text.TextAlignment;
 
 public class SettingsMenuView extends GridPane {
-    private GameManager gameManager; // Không phải final để có thể set sau khi khởi tạo
+    private GameManager gameManager; // Không sử dụng final để cho phép thiết lập sau khi khởi tạo
     private final Label nameLabel;
     private final Label levelLabel;
     private double brightness = SettingsMenuConfig.DEFAULT_BRIGHTNESS;
     private Slider brightnessSlider;
 
-    // Audio Settings (Đơn giản hóa: chỉ Master Volume)
+    // Cài đặt âm thanh
     private double masterVolume = SettingsMenuConfig.DEFAULT_MASTER_VOLUME;
     private Slider masterVolumeSlider;
 
-    // Custom Navigation Bar
+    // Thanh điều hướng tùy chỉnh
     private final HBox navBar;
     private final StackPane contentArea;
     private Button generalButton;
     private Button controlsButton;
     private Button tutorialButton;
-    private String currentTab = "General"; // Track current active tab
+    private String currentTab = SettingsMenuConfig.TAB_GENERAL; // Theo dõi tab hiện đang hoạt động
 
     public SettingsMenuView(GameManager gameManager) {
-        this.gameManager = gameManager; // Có thể null khi khởi tạo
+        this.gameManager = gameManager; // Có thể là null tại thời điểm khởi tạo
 
         this.setStyle(SettingsMenuConfig.SETTINGS_MENU_STYLE_CSS);
         this.setPrefSize(SettingsMenuConfig.SETTINGS_MENU_WIDTH_NEW, SettingsMenuConfig.SETTINGS_MENU_HEIGHT_NEW);
@@ -48,28 +48,28 @@ public class SettingsMenuView extends GridPane {
         this.setHgap(20);
         this.setVgap(15);
 
-        // Cấu hình GridPane columns
+        // Cấu hình các cột cho GridPane
         ColumnConstraints col1 = new ColumnConstraints();
-        col1.setPercentWidth(40); // Cột 1: Labels
+        col1.setPercentWidth(40); // Cột 1: Nhãn hiển thị
         ColumnConstraints col2 = new ColumnConstraints();
-        col2.setPercentWidth(60); // Cột 2: Controls
+        col2.setPercentWidth(60); // Cột 2: Các điều khiển
         this.getColumnConstraints().addAll(col1, col2);
 
         int currentRow = 0;
 
-        // Tiêu đề (span 2 cột) - Remove gear emoji
-        Label title = new Label("Game Menu");
+        // Tiêu đề trải rộng trên 2 cột
+        Label title = new Label(SettingsMenuConfig.GAME_MENU_LABEL_TEXT);
         title.setTextFill(SettingsMenuConfig.SETTINGS_MENU_FONT_COLOR);
         title.setFont(Font.font(SettingsMenuConfig.SETTINGS_MENU_FONT_FAMILY, SettingsMenuConfig.SETTINGS_MENU_TITLE_FONT_SIZE));
         title.setTextAlignment(TextAlignment.CENTER);
         this.add(title, 0, currentRow++, 2, 1);
         GridPane.setHalignment(title, HPos.CENTER);
 
-        // Thông tin người chơi (span 2 cột)
+        // Thông tin người chơi trải rộng trên 2 cột
         VBox playerInfo = new VBox(SettingsMenuConfig.SETTINGS_PLAYER_INFO_SPACING);
         playerInfo.setAlignment(Pos.CENTER);
-        nameLabel = new Label("Player: ");
-        levelLabel = new Label("Level: ");
+        nameLabel = new Label(SettingsMenuConfig.PLAYER_LABEL_PREFIX);
+        levelLabel = new Label(SettingsMenuConfig.LEVEL_LABEL_PREFIX);
         nameLabel.setTextFill(SettingsMenuConfig.SETTINGS_MENU_FONT_COLOR);
         levelLabel.setTextFill(SettingsMenuConfig.SETTINGS_MENU_FONT_COLOR);
         nameLabel.setFont(Font.font(SettingsMenuConfig.SETTINGS_MENU_FONT_FAMILY, SettingsMenuConfig.SETTINGS_MENU_BODY_FONT_SIZE));
@@ -78,67 +78,67 @@ public class SettingsMenuView extends GridPane {
         this.add(playerInfo, 0, currentRow++, 2, 1);
         GridPane.setHalignment(playerInfo, HPos.CENTER);
 
-        // Custom Navigation Bar (replaces TabPane)
-        navBar = new HBox(20); // Spacing between buttons
+        // Thanh điều hướng tùy chỉnh
+        navBar = new HBox(SettingsMenuConfig.NAV_BAR_SPACING); // Khoảng cách giữa các nút
         navBar.setAlignment(Pos.CENTER);
         navBar.setPadding(new Insets(10, 0, 10, 0));
 
-        // Create navigation buttons
-        generalButton = new Button("General");
-        controlsButton = new Button("Controls");
-        tutorialButton = new Button("Tutorial");
+        // Tạo các nút điều hướng
+        generalButton = new Button(SettingsMenuConfig.TAB_GENERAL);
+        controlsButton = new Button(SettingsMenuConfig.TAB_CONTROLS);
+        tutorialButton = new Button(SettingsMenuConfig.TAB_TUTORIAL);
 
-        // Set button actions
-        generalButton.setOnAction(e -> switchTab("General"));
-        controlsButton.setOnAction(e -> switchTab("Controls"));
-        tutorialButton.setOnAction(e -> switchTab("Tutorial"));
+        // Thiết lập hành động cho nút
+        generalButton.setOnAction(e -> switchTab(SettingsMenuConfig.TAB_GENERAL));
+        controlsButton.setOnAction(e -> switchTab(SettingsMenuConfig.TAB_CONTROLS));
+        tutorialButton.setOnAction(e -> switchTab(SettingsMenuConfig.TAB_TUTORIAL));
 
-        // Add buttons to navigation bar
+        // Thêm các nút vào thanh điều hướng
         navBar.getChildren().addAll(generalButton, controlsButton, tutorialButton);
 
-        // Add navigation bar to grid
+        // Thêm thanh điều hướng vào lưới giao diện
         this.add(navBar, 0, currentRow++, 2, 1);
         GridPane.setHalignment(navBar, HPos.CENTER);
 
-        // Content Area to hold active view
+        // Khu vực nội dung để hiển thị giao diện đang hoạt động
         contentArea = new StackPane();
-        contentArea.setPrefSize(SettingsMenuConfig.SETTINGS_MENU_WIDTH_NEW - 60, 400); // Leave padding space
+        contentArea.setPrefSize(SettingsMenuConfig.SETTINGS_MENU_WIDTH_NEW - SettingsMenuConfig.CONTENT_AREA_WIDTH_PADDING, SettingsMenuConfig.CONTENT_AREA_HEIGHT); // Để lại khoảng trống cho phần đệm
 
-        // Add content area to grid
+        // Thêm khu vực nội dung vào lưới
         this.add(contentArea, 0, currentRow++, 2, 1);
         GridPane.setHgrow(contentArea, Priority.ALWAYS);
         GridPane.setVgrow(contentArea, Priority.ALWAYS);
 
-        // Initialize with General tab
-        switchTab("General");
+        // Khởi tạo với tab Chung
+        switchTab(SettingsMenuConfig.TAB_GENERAL);
 
-        // Đặt menu giữa màn hình
+        // Căn chỉnh menu ra giữa màn hình
         this.setLayoutX(WindowConfig.SCREEN_WIDTH / 2 - SettingsMenuConfig.SETTINGS_MENU_WIDTH_NEW / 2);
         this.setLayoutY(WindowConfig.SCREEN_HEIGHT / 2 - SettingsMenuConfig.SETTINGS_MENU_HEIGHT_NEW / 2);
 
-        this.setVisible(false); // Ẩn ban đầu
+        this.setVisible(false); // Ẩn menu khi mới khởi tạo
     }
 
     /**
-     * Switch to a different tab and update button styles
-     * @param tabName Name of the tab to switch to ("General", "Controls", or "Tutorial")
+     * Chuyển đổi sang một tab khác và cập nhật kiểu dáng nút
+     * @param tabName Tên của tab cần chuyển đổi ("General", "Controls", hoặc "Tutorial")
      */
     private void switchTab(String tabName) {
         currentTab = tabName;
 
-        // Clear content area
+        // Xóa nội dung hiện tại
         contentArea.getChildren().clear();
 
-        // Get and display new content
+        // Lấy và hiển thị nội dung mới
         Node content = null;
         switch (tabName) {
-            case "General":
+            case SettingsMenuConfig.TAB_GENERAL:
                 content = createGeneralContent();
                 break;
-            case "Controls":
+            case SettingsMenuConfig.TAB_CONTROLS:
                 content = createControlsContent();
                 break;
-            case "Tutorial":
+            case SettingsMenuConfig.TAB_TUTORIAL:
                 content = createTutorialContent();
                 break;
         }
@@ -147,39 +147,28 @@ public class SettingsMenuView extends GridPane {
             contentArea.getChildren().add(content);
         }
 
-        // Update button styles
+        // Cập nhật kiểu dáng nút
         updateNavButtonStyles();
     }
 
     /**
-     * Update navigation button styles based on active tab
+     * Cập nhật kiểu dáng nút điều hướng dựa trên tab đang hoạt động
      */
     private void updateNavButtonStyles() {
-        // Active Button Style: White text, Bold, Underline border (border-bottom: 2px solid white)
-        String activeButtonStyle =
-                "-fx-background-color: transparent;" +
-                        "-fx-text-fill: white;" +
-                        "-fx-font-weight: bold;" +
-                        "-fx-border-color: transparent transparent white transparent;" +
-                        "-fx-border-width: 0 0 2 0;" +
-                        "-fx-padding: 5px;";
+        // Kiểu cho nút đang kích hoạt
+        String activeButtonStyle = SettingsMenuConfig.NAV_BUTTON_ACTIVE_STYLE;
 
-        // Inactive Button Style: Gray text, No border
-        String inactiveButtonStyle =
-                "-fx-background-color: transparent;" +
-                        "-fx-text-fill: #aaaaaa;" +
-                        "-fx-font-weight: normal;" +
-                        "-fx-border-width: 0;" +
-                        "-fx-padding: 5px;";
+        // Kiểu cho nút không kích hoạt
+        String inactiveButtonStyle = SettingsMenuConfig.NAV_BUTTON_INACTIVE_STYLE;
 
-        // Apply styles based on current tab
-        generalButton.setStyle(currentTab.equals("General") ? activeButtonStyle : inactiveButtonStyle);
-        controlsButton.setStyle(currentTab.equals("Controls") ? activeButtonStyle : inactiveButtonStyle);
-        tutorialButton.setStyle(currentTab.equals("Tutorial") ? activeButtonStyle : inactiveButtonStyle);
+        // Áp dụng kiểu dáng dựa trên tab hiện tại
+        generalButton.setStyle(currentTab.equals(SettingsMenuConfig.TAB_GENERAL) ? activeButtonStyle : inactiveButtonStyle);
+        controlsButton.setStyle(currentTab.equals(SettingsMenuConfig.TAB_CONTROLS) ? activeButtonStyle : inactiveButtonStyle);
+        tutorialButton.setStyle(currentTab.equals(SettingsMenuConfig.TAB_TUTORIAL) ? activeButtonStyle : inactiveButtonStyle);
     }
 
     /**
-     * Tạo nội dung "General" chứa Volume, Brightness, và các nút Resume/Save/Exit
+     * Tạo nội dung "General" chứa Cài đặt âm lượng, Độ sáng, và các nút Tiếp tục/Lưu/Thoát
      */
     private Node createGeneralContent() {
         GridPane contentGrid = new GridPane();
@@ -195,38 +184,38 @@ public class SettingsMenuView extends GridPane {
 
         int row = 0;
 
-        // Master Volume Slider
+        // Thanh trượt điều chỉnh âm lượng tổng
         Label masterVolLabel = new Label(SettingsMenuConfig.SETTINGS_MASTER_VOLUME_LABEL);
         masterVolLabel.setTextFill(SettingsMenuConfig.SETTINGS_MENU_FONT_COLOR);
         masterVolLabel.setFont(Font.font(SettingsMenuConfig.SETTINGS_MENU_FONT_FAMILY, SettingsMenuConfig.SETTINGS_MENU_BODY_FONT_SIZE));
         contentGrid.add(masterVolLabel, 0, row);
 
         masterVolumeSlider = new Slider(SettingsMenuConfig.SLIDER_MIN_VALUE, SettingsMenuConfig.SLIDER_MAX_VALUE, SettingsMenuConfig.DEFAULT_MASTER_VOLUME);
-        masterVolumeSlider.setPrefWidth(200);
+        masterVolumeSlider.setPrefWidth(SettingsMenuConfig.SLIDER_WIDTH);
         masterVolumeSlider.valueProperty().addListener((obs, oldVal, newVal) -> {
             masterVolume = newVal.doubleValue();
-            // Áp dụng master volume vào audio system ngay lập tức (real-time update)
+            // Cập nhật âm lượng tổng vào hệ thống âm thanh theo thời gian thực
             if (gameManager != null && gameManager.getAudioManager() != null) {
                 gameManager.getAudioManager().setGlobalVolume(masterVolume);
             }
         });
         contentGrid.add(masterVolumeSlider, 1, row++);
 
-        // Brightness Slider
-        Label brightnessLabel = new Label("Brightness:");
+        // Thanh trượt độ sáng
+        Label brightnessLabel = new Label(SettingsMenuConfig.BRIGHTNESS_LABEL);
         brightnessLabel.setTextFill(SettingsMenuConfig.SETTINGS_MENU_FONT_COLOR);
         brightnessLabel.setFont(Font.font(SettingsMenuConfig.SETTINGS_MENU_FONT_FAMILY, SettingsMenuConfig.SETTINGS_MENU_BODY_FONT_SIZE));
         contentGrid.add(brightnessLabel, 0, row);
 
         brightnessSlider = new Slider(SettingsMenuConfig.BRIGHTNESS_MIN, SettingsMenuConfig.BRIGHTNESS_MAX, brightness);
-        brightnessSlider.setPrefWidth(200);
+        brightnessSlider.setPrefWidth(SettingsMenuConfig.SLIDER_WIDTH);
         brightnessSlider.valueProperty().addListener((obs, oldVal, newVal) -> {
             brightness = newVal.doubleValue();
-            // Áp dụng brightness vào HudView ngay lập tức (real-time update)
+            // Áp dụng độ sáng vào HudView ngay lập tức
             if (gameManager != null && gameManager.getMainGameView() != null && gameManager.getMainGameView().getHudView() != null) {
                 HudView hudView = gameManager.getMainGameView().getHudView();
                 hudView.setBrightness(brightness);
-                // Cập nhật lại lighting để áp dụng brightness mới ngay lập tức
+                // Cập nhật lại ánh sáng để áp dụng độ sáng mới
                 if (gameManager.getTimeManager() != null) {
                     double currentIntensity = gameManager.getTimeManager().getCurrentLightIntensity();
                     hudView.updateLighting(currentIntensity);
@@ -235,20 +224,20 @@ public class SettingsMenuView extends GridPane {
         });
         contentGrid.add(brightnessSlider, 1, row++);
 
-        // Buttons section
-        VBox buttonsBox = new VBox(10);
+        // Khu vực các nút chức năng
+        VBox buttonsBox = new VBox(SettingsMenuConfig.BUTTON_BOX_SPACING);
         buttonsBox.setAlignment(Pos.CENTER);
         buttonsBox.setPadding(new Insets(20, 0, 0, 0));
 
-        // Resume button
+        // Nút Tiếp tục
         Button resume = new Button(SettingsMenuConfig.SETTINGS_RESUME_BUTTON_TEXT);
         resume.setPrefWidth(SettingsMenuConfig.SETTINGS_MENU_BUTTON_WIDTH);
         resume.setOnAction(e -> {
             if (this.gameManager != null) {
-                // Đóng menu
+                // Đóng menu cài đặt
                 this.gameManager.toggleSettingsMenu();
 
-                // Request focus để key bindings hoạt động ngay lập tức
+                // Yêu cầu focus để các phím tắt hoạt động ngay lập tức
                 if (this.gameManager.getMainGameView() != null &&
                         this.gameManager.getMainGameView().getRootPane() != null &&
                         this.gameManager.getMainGameView().getRootPane().getScene() != null) {
@@ -257,16 +246,16 @@ public class SettingsMenuView extends GridPane {
             }
         });
 
-        // Save button
+        // Nút Lưu
         Button save = new Button(SettingsMenuConfig.SETTINGS_SAVE_BUTTON_TEXT);
         save.setPrefWidth(SettingsMenuConfig.SETTINGS_MENU_BUTTON_WIDTH);
         save.setOnAction(e -> {
             if (this.gameManager != null) {
-                this.gameManager.saveGameData(); // Gọi logic lưu game từ GameManager
+                this.gameManager.saveGameData(); // Gọi logic lưu trò chơi từ GameManager
             }
         });
 
-        // Exit button
+        // Nút Thoát
         Button exit = new Button(SettingsMenuConfig.SETTINGS_EXIT_BUTTON_TEXT);
         exit.setPrefWidth(SettingsMenuConfig.SETTINGS_MENU_BUTTON_WIDTH);
         exit.setOnAction(e -> System.exit(0));
@@ -284,68 +273,68 @@ public class SettingsMenuView extends GridPane {
     }
 
     /**
-     * Tạo nội dung "Controls" chứa Key Bindings list
+     * Tạo nội dung "Controls" hiển thị danh sách phím tắt
      */
     private Node createControlsContent() {
         VBox contentBox = new VBox(10);
         contentBox.setPadding(new Insets(20));
         contentBox.setAlignment(Pos.TOP_LEFT);
 
-        Label keyBindingsLabel = new Label("Key Bindings:");
+        Label keyBindingsLabel = new Label(SettingsMenuConfig.CONTROLS_TITLE);
         keyBindingsLabel.setTextFill(SettingsMenuConfig.SETTINGS_MENU_FONT_COLOR);
         keyBindingsLabel.setFont(Font.font(SettingsMenuConfig.SETTINGS_MENU_FONT_FAMILY, 16));
         keyBindingsLabel.setStyle("-fx-font-weight: bold;");
 
-        // Tạo GridPane để căn chỉnh Key và Action (Key bên trái, Action bên phải)
+        // Tạo GridPane để căn chỉnh Phím bên trái và Hành động bên phải
         GridPane keyBindingsGrid = new GridPane();
         keyBindingsGrid.setHgap(30);
         keyBindingsGrid.setVgap(8);
         keyBindingsGrid.setAlignment(Pos.CENTER_LEFT);
 
-        // Tạo các labels với key bindings chi tiết hơn
+        // Tạo các nhãn hiển thị chi tiết phím tắt
         int row = 0;
 
-        // Movement keys (broken down)
+        // Các phím di chuyển
         Label keyW = new Label("W");
-        Label actionW = new Label("Move Up");
+        Label actionW = new Label(SettingsMenuConfig.ACTION_MOVE_UP);
         Label keyA = new Label("A");
-        Label actionA = new Label("Move Left");
+        Label actionA = new Label(SettingsMenuConfig.ACTION_MOVE_LEFT);
         Label keyS = new Label("S");
-        Label actionS = new Label("Move Down");
+        Label actionS = new Label(SettingsMenuConfig.ACTION_MOVE_DOWN);
         Label keyD = new Label("D");
-        Label actionD = new Label("Move Right");
+        Label actionD = new Label(SettingsMenuConfig.ACTION_MOVE_RIGHT);
 
-        // Other keys
+        // Các phím chức năng khác
         Label keyB = new Label("B");
-        Label actionB = new Label("Open / Close Shop");
+        Label actionB = new Label(SettingsMenuConfig.ACTION_SHOP);
         Label keyQ = new Label("Q");
-        Label actionQ = new Label("Drop Item");
+        Label actionQ = new Label(SettingsMenuConfig.ACTION_DROP);
         Label keyJ = new Label("J");
-        Label actionJ = new Label("Open / Close Quest Board");
+        Label actionJ = new Label(SettingsMenuConfig.ACTION_QUEST);
         Label keyESC = new Label("ESC");
-        Label actionESC = new Label("Pause / Resume Game");
-        Label keyNum = new Label("1 - 9");
-        Label actionNum = new Label("Select Hotbar Slot");
-        Label keyMouseLeft = new Label("Mouse Left");
-        Label actionMouseLeft = new Label("Use Tool / Interact");
-        Label keyMouseRight = new Label("Mouse Right");
-        Label actionMouseRight = new Label("Toggle Fence / Eat Food");
+        Label actionESC = new Label(SettingsMenuConfig.ACTION_PAUSE);
+        Label keyNum = new Label(SettingsMenuConfig.KEY_NUMS);
+        Label actionNum = new Label(SettingsMenuConfig.ACTION_HOTBAR);
+        Label keyMouseLeft = new Label(SettingsMenuConfig.KEY_MOUSE_LEFT);
+        Label actionMouseLeft = new Label(SettingsMenuConfig.ACTION_PRIMARY);
+        Label keyMouseRight = new Label(SettingsMenuConfig.KEY_MOUSE_RIGHT);
+        Label actionMouseRight = new Label(SettingsMenuConfig.ACTION_SECONDARY);
 
-        // Style all key labels (left column)
+        // Định dạng cho tất cả các nhãn phím
         Label[] keyLabels = {keyW, keyA, keyS, keyD, keyB, keyQ, keyJ, keyESC, keyNum, keyMouseLeft, keyMouseRight};
         for (Label lbl : keyLabels) {
             lbl.setTextFill(SettingsMenuConfig.SETTINGS_MENU_FONT_COLOR);
             lbl.setFont(Font.font(SettingsMenuConfig.SETTINGS_MENU_FONT_FAMILY, FontWeight.BOLD, 14));
         }
 
-        // Style all action labels (right column)
+        // Định dạng cho tất cả các nhãn hành động
         Label[] actionLabels = {actionW, actionA, actionS, actionD, actionB, actionQ, actionJ, actionESC, actionNum, actionMouseLeft, actionMouseRight};
         for (Label lbl : actionLabels) {
             lbl.setTextFill(SettingsMenuConfig.SETTINGS_MENU_FONT_COLOR);
             lbl.setFont(Font.font(SettingsMenuConfig.SETTINGS_MENU_FONT_FAMILY, 14));
         }
 
-        // Add to grid
+        // Thêm vào lưới
         keyBindingsGrid.add(keyW, 0, row++);
         keyBindingsGrid.add(actionW, 1, row - 1);
         keyBindingsGrid.add(keyA, 0, row++);
@@ -369,7 +358,7 @@ public class SettingsMenuView extends GridPane {
         keyBindingsGrid.add(keyMouseRight, 0, row++);
         keyBindingsGrid.add(actionMouseRight, 1, row - 1);
 
-        // Add key bindings grid to content box
+        // Thêm bảng phím tắt vào hộp nội dung
         contentBox.getChildren().addAll(keyBindingsLabel, keyBindingsGrid);
 
         ScrollPane scrollPane = new ScrollPane(contentBox);
@@ -384,16 +373,16 @@ public class SettingsMenuView extends GridPane {
      * Tạo nội dung "Tutorial" chứa hướng dẫn chơi game
      */
     private Node createTutorialContent() {
-        // Use Label instead of TextArea to fix white text on white background issue
+        // Sử dụng Label để hiển thị văn bản hướng dẫn
         Label tutorialLabel = new Label();
         tutorialLabel.setWrapText(true);
-        tutorialLabel.setMinHeight(Region.USE_PREF_SIZE); // Force label to calculate full height based on wrapped text
+        tutorialLabel.setMinHeight(Region.USE_PREF_SIZE); // Buộc nhãn tính toán chiều cao đầy đủ dựa trên văn bản được xuống dòng
         tutorialLabel.setFont(Font.font(SettingsMenuConfig.SETTINGS_MENU_FONT_FAMILY, 14));
         tutorialLabel.setTextFill(javafx.scene.paint.Color.WHITE);
-        // [ĐÃ SỬA] Sử dụng hằng số từ Config thay vì hardcode
+        // Sử dụng hằng số cấu hình cho văn bản hướng dẫn
         tutorialLabel.setText(SettingsMenuConfig.TUTORIAL_TEXT);
 
-        // VBox container for proper padding
+        // Container VBox để căn chỉnh lề
         VBox tutorialContainer = new VBox(10);
         tutorialContainer.setPadding(new Insets(20));
         tutorialContainer.setAlignment(Pos.TOP_LEFT);
@@ -411,12 +400,12 @@ public class SettingsMenuView extends GridPane {
 
 
     public void updatePlayerInfo(String playerName, int playerLevel) {
-        nameLabel.setText("Player: " + playerName);
-        levelLabel.setText("Level: " + playerLevel);
+        nameLabel.setText(SettingsMenuConfig.PLAYER_LABEL_PREFIX + playerName);
+        levelLabel.setText(SettingsMenuConfig.LEVEL_LABEL_PREFIX + playerLevel);
     }
 
     public void show() {
-        // Load brightness hiện tại từ HudView khi mở menu
+        // Tải cài đặt độ sáng hiện tại từ HudView khi mở menu
         if (gameManager != null && gameManager.getMainGameView() != null && gameManager.getMainGameView().getHudView() != null) {
             HudView hudView = gameManager.getMainGameView().getHudView();
             brightness = hudView.getBrightness();
@@ -425,7 +414,7 @@ public class SettingsMenuView extends GridPane {
             }
         }
 
-        // Load volume hiện tại từ AudioManager khi mở menu
+        // Tải cài đặt âm lượng hiện tại từ AudioManager khi mở menu
         if (gameManager != null && gameManager.getAudioManager() != null) {
             masterVolume = gameManager.getAudioManager().getCurrentVolume();
             if (masterVolumeSlider != null) {
@@ -434,7 +423,7 @@ public class SettingsMenuView extends GridPane {
         }
 
         setVisible(true);
-        // Đảm bảo Settings Menu luôn ở trên cùng khi mở
+        // Đảm bảo menu cài đặt luôn hiển thị trên cùng
         this.toFront();
     }
 
@@ -443,8 +432,8 @@ public class SettingsMenuView extends GridPane {
     }
 
     /**
-     * Set GameManager reference (được gọi sau khi MainGameView được set gameManager)
-     * @param gameManager GameManager instance
+     * Thiết lập tham chiếu GameManager
+     * @param gameManager Đối tượng GameManager
      */
     public void setGameManager(GameManager gameManager) {
         this.gameManager = gameManager;

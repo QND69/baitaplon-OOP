@@ -2,62 +2,44 @@ package com.example.farmSimulation.model;
 
 import com.example.farmSimulation.config.ShopConfig;
 import com.example.farmSimulation.model.GameSaveState.SavedShopSlot;
+import lombok.Getter;
+import lombok.Setter;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Random;
 
+@Getter
+@Setter
+
 /**
- * Quản lý logic mua bán trong Shop
+ * Lớp quản lý logic mua bán trong Cửa hàng
  */
 public class ShopManager {
     private final Player player;
     private final Random random;
-    private List<ShopSlot> currentDailyStock; // Danh sách items trong shop hôm nay
-    private QuestManager questManager; // Quản lý quest (sẽ được set từ bên ngoài)
+    private List<ShopSlot> currentDailyStock; // Danh sách các vật phẩm có sẵn trong cửa hàng hôm nay
+    private QuestManager questManager; // Trình quản lý nhiệm vụ, sẽ được thiết lập từ bên ngoài
 
     public ShopManager(Player player) {
         this.player = player;
         this.random = new Random();
         this.currentDailyStock = new ArrayList<>();
 
-        // Khởi tạo shop stock khi bắt đầu game
-        generateDailyStock(true); // Cho phép discount lần đầu
+        // Khởi tạo kho hàng của cửa hàng ngay khi bắt đầu game
+        generateDailyStock(true); // Cho phép áp dụng giảm giá cho lần tạo đầu tiên
     }
 
     /**
-     * Set QuestManager để track quest progress khi bán hàng
-     */
-    public void setQuestManager(QuestManager questManager) {
-        this.questManager = questManager;
-    }
-
-    /**
-     * Lấy reference đến Player (để ShopView có thể truy cập hotbar items)
-     * @return Player instance
-     */
-    public Player getPlayer() {
-        return player;
-    }
-
-    /**
-     * Lấy danh sách daily stock hiện tại
-     * @return List of ShopSlot
-     */
-    public List<ShopSlot> getCurrentDailyStock() {
-        return currentDailyStock;
-    }
-
-    /**
-     * Tạo danh sách items ngẫu nhiên cho shop
-     * Sử dụng "Deck Shuffle" logic để đảm bảo mỗi item chỉ xuất hiện một lần trong daily stock
-     * @param allowDiscounts true nếu cho phép discount, false nếu không
+     * Tạo danh sách vật phẩm ngẫu nhiên cho cửa hàng mỗi ngày.
+     * Sử dụng thuật toán xáo trộn bộ bài để đảm bảo mỗi vật phẩm chỉ xuất hiện tối đa một lần trong danh sách.
+     * @param allowDiscounts true nếu cho phép giảm giá, false nếu không
      */
     public void generateDailyStock(boolean allowDiscounts) {
         currentDailyStock.clear();
 
-        // Lấy danh sách tất cả items có thể mua (buyPrice > 0)
+        // Lấy danh sách tất cả các vật phẩm có thể mua được, tức là có giá mua lớn hơn 0
         List<ItemType> allBuyableItems = new ArrayList<>();
         for (ItemType itemType : ItemType.values()) {
             if (itemType.getBuyPrice() > 0) {
@@ -65,35 +47,35 @@ public class ShopManager {
             }
         }
 
-        // Xáo trộn danh sách để đảm bảo tính ngẫu nhiên và tránh trùng lặp
+        // Xáo trộn danh sách vật phẩm để tạo sự ngẫu nhiên và tránh trùng lặp khi chọn
         Collections.shuffle(allBuyableItems, random);
 
-        // Xác định số lượng items sẽ được chọn (đảm bảo không vượt quá số items có sẵn)
+        // Xác định số lượng vật phẩm sẽ xuất hiện trong cửa hàng, không vượt quá số lượng vật phẩm khả dụng
         int count = Math.min(ShopConfig.DAILY_SHOP_SLOTS, allBuyableItems.size());
 
-        // Tạo ShopSlot cho từng item đã được shuffle (đảm bảo unique)
+        // Tạo các ô hàng cho từng vật phẩm đã được chọn
         for (int i = 0; i < count; i++) {
             ItemType selectedItem = allBuyableItems.get(i);
 
-            // Chọn số lượng ngẫu nhiên (MIN đến MAX)
+            // Chọn số lượng ngẫu nhiên cho mỗi vật phẩm trong khoảng từ MIN đến MAX
             int quantity = ShopConfig.MIN_ITEM_QUANTITY +
                     random.nextInt(ShopConfig.MAX_ITEM_QUANTITY - ShopConfig.MIN_ITEM_QUANTITY + 1);
 
-            // Xác định discount (nếu cho phép)
+            // Xác định mức giảm giá nếu được phép
             double discountRate = 0.0;
             if (allowDiscounts && random.nextDouble() < ShopConfig.DISCOUNT_CHANCE) {
-                // Discount từ 10% đến MAX_DISCOUNT_RATE
+                // Mức giảm giá dao động từ 10% đến mức tối đa được cấu hình
                 discountRate = 0.1 + random.nextDouble() * (ShopConfig.MAX_DISCOUNT_RATE - 0.1);
             }
 
-            // Tạo ShopSlot và thêm vào danh sách
+            // Tạo đối tượng ô hàng và thêm vào danh sách
             ShopSlot slot = new ShopSlot(selectedItem, quantity, discountRate);
             currentDailyStock.add(slot);
         }
     }
 
     /**
-     * Khôi phục stock từ file save
+     * Khôi phục danh sách hàng hóa từ dữ liệu đã lưu
      */
     public void restoreStock(List<SavedShopSlot> savedSlots) {
         currentDailyStock.clear();
@@ -104,93 +86,93 @@ public class ShopManager {
     }
 
     /**
-     * Reroll shop stock (trả tiền để refresh items)
-     * @return Error message nếu có, null nếu thành công
+     * Làm mới danh sách hàng hóa trong cửa hàng, người chơi phải trả phí để thực hiện.
+     * @return Thông báo lỗi nếu có, hoặc null nếu thành công
      */
     public String rerollStock() {
-        // Kiểm tra tiền
+        // Kiểm tra xem người chơi có đủ tiền không
         if (player.getMoney() < ShopConfig.REROLL_PRICE) {
             return "Not enough money! Need: " + ShopConfig.REROLL_PRICE + ", Have: " + (int)player.getMoney();
         }
 
-        // Trừ tiền
+        // Trừ tiền của người chơi
         boolean spent = player.spendMoney(ShopConfig.REROLL_PRICE);
         if (!spent) {
             return "Error deducting money";
         }
 
-        // Generate stock mới (KHÔNG có discount để balance)
+        // Tạo danh sách hàng hóa mới, nhưng không áp dụng giảm giá để cân bằng game
         generateDailyStock(false);
 
-        return null; // Thành công
+        return null; // Trả về null báo hiệu thành công
     }
 
     /**
-     * Mua item từ shop (mua từ daily stock slot)
-     * @param shopSlotIndex Index trong currentDailyStock
+     * Mua vật phẩm từ cửa hàng.
+     * @param shopSlotIndex Chỉ số của ô hàng trong danh sách hàng ngày
      * @param quantity Số lượng muốn mua
-     * @return Chuỗi lỗi nếu có, null nếu thành công
+     * @return Thông báo lỗi nếu có, hoặc null nếu thành công
      */
     public String buyItem(int shopSlotIndex, int quantity) {
-        // Kiểm tra slot hợp lệ
+        // Kiểm tra tính hợp lệ của chỉ số ô hàng
         if (shopSlotIndex < 0 || shopSlotIndex >= currentDailyStock.size()) {
             return "Invalid shop slot";
         }
 
         ShopSlot slot = currentDailyStock.get(shopSlotIndex);
 
-        // Kiểm tra item còn hàng không
+        // Kiểm tra xem vật phẩm còn hàng không
         if (slot.isSoldOut()) {
             return "Item is sold out";
         }
 
-        // Kiểm tra số lượng
+        // Điều chỉnh số lượng mua nếu vượt quá số lượng hiện có
         if (quantity > slot.getQuantity()) {
-            quantity = slot.getQuantity(); // Mua tất cả số lượng còn lại
+            quantity = slot.getQuantity(); // Mua hết số lượng còn lại
         }
 
-        // Tính giá tiền (đã bao gồm discount)
+        // Tính tổng giá tiền, đã bao gồm giảm giá nếu có
         double totalPrice = slot.getPrice() * quantity;
 
-        // Kiểm tra tiền
+        // Kiểm tra khả năng chi trả của người chơi
         if (player.getMoney() < totalPrice) {
             return "Not enough money! Need: " + (int)totalPrice + ", Have: " + (int)player.getMoney();
         }
 
-        // Kiểm tra inventory có chỗ không
+        // Kiểm tra túi đồ của người chơi có đủ chỗ chứa không
         boolean canAdd = canAddItemToInventory(slot.getItemType(), quantity);
         if (!canAdd) {
             return "Inventory is full!";
         }
 
-        // Trừ tiền
+        // Thực hiện trừ tiền
         boolean spent = player.spendMoney(totalPrice);
         if (!spent) {
             return "Error deducting money";
         }
 
-        // Thêm item vào inventory
+        // Thêm vật phẩm vào túi đồ
         boolean added = player.addItem(slot.getItemType(), quantity);
         if (!added) {
-            // Nếu thêm thất bại, hoàn lại tiền
+            // Nếu thêm thất bại vì lý do nào đó, hoàn lại tiền cho người chơi
             player.addMoney(totalPrice);
             return "Cannot add item to inventory";
         }
 
-        // Giảm số lượng trong shop slot
+        // Giảm số lượng vật phẩm trong kho của cửa hàng
         slot.setQuantity(slot.getQuantity() - quantity);
 
-        return null; // Thành công
+        return null; // Giao dịch thành công
     }
 
     /**
-     * Bán item cho shop
-     * @param slotIndex Slot trong hotbar chứa item cần bán
+     * Bán vật phẩm từ túi đồ của người chơi cho cửa hàng.
+     * @param slotIndex Chỉ số ô trong thanh công cụ chứa vật phẩm cần bán
      * @param quantity Số lượng muốn bán
-     * @return Chuỗi lỗi nếu có, null nếu thành công
+     * @return Thông báo lỗi nếu có, hoặc null nếu thành công
      */
     public String sellItem(int slotIndex, int quantity) {
-        // Kiểm tra slot hợp lệ
+        // Kiểm tra tính hợp lệ của ô chứa đồ
         if (slotIndex < 0 || slotIndex >= player.getHotbarItems().length) {
             return "Invalid slot";
         }
@@ -202,45 +184,46 @@ public class ShopManager {
 
         ItemType itemType = stack.getItemType();
 
-        // Kiểm tra item có thể bán được không
+        // Kiểm tra xem vật phẩm này có thể bán được hay không
         if (itemType.getSellPrice() <= 0) {
             return "Cannot sell this item";
         }
 
-        // Kiểm tra số lượng
+        // Kiểm tra số lượng bán thực tế so với số lượng hiện có
         int availableQuantity = stack.getQuantity();
         if (quantity > availableQuantity) {
-            quantity = availableQuantity; // Bán tất cả số lượng có
+            quantity = availableQuantity; // Bán tất cả số lượng đang có
         }
 
-        // Tính tổng tiền nhận được
+        // Tính tổng số tiền người chơi nhận được
         double totalPrice = itemType.getSellPrice() * quantity;
 
-        // Xóa item khỏi inventory
+        // Xóa vật phẩm khỏi túi đồ
         player.consumeItemAtSlot(slotIndex, quantity);
 
-        // Cộng tiền
+        // Cộng tiền cho người chơi
         player.addMoney(totalPrice);
 
-        // Quest tracking: Sell items
+        // Theo dõi tiến độ nhiệm vụ bán hàng nếu có
         if (questManager != null) {
             questManager.onEvent(QuestType.SELL, itemType, quantity);
         }
 
-        return null; // Thành công
+        return null; // Giao dịch thành công
     }
 
     /**
-     * Kiểm tra xem có thể thêm item vào inventory không
-     * @param itemType Loại item
-     * @param quantity Số lượng
+     * Kiểm tra xem có thể thêm vật phẩm vào túi đồ hay không.
+     * Hàm này tính toán dựa trên khả năng xếp chồng vật phẩm và số lượng ô trống.
+     * @param itemType Loại vật phẩm
+     * @param quantity Số lượng cần thêm
      * @return true nếu có thể thêm, false nếu không
      */
     private boolean canAddItemToInventory(ItemType itemType, int quantity) {
         ItemStack[] hotbarItems = player.getHotbarItems();
         int remaining = quantity;
 
-        // Kiểm tra stack vào ô có sẵn
+        // Kiểm tra khả năng xếp chồng vào các ô đã có vật phẩm cùng loại
         for (ItemStack stack : hotbarItems) {
             if (stack != null && stack.getItemType() == itemType) {
                 int canAdd = itemType.getMaxStackSize() - stack.getQuantity();
@@ -249,7 +232,7 @@ public class ShopManager {
             }
         }
 
-        // Kiểm tra ô trống
+        // Đếm số lượng ô hoàn toàn trống
         int emptySlots = 0;
         for (ItemStack stack : hotbarItems) {
             if (stack == null) {
@@ -257,7 +240,7 @@ public class ShopManager {
             }
         }
 
-        // Tính số ô cần thiết
+        // Tính toán số lượng ô trống cần thiết cho phần còn lại
         int slotsNeeded = (int) Math.ceil((double) remaining / itemType.getMaxStackSize());
         return emptySlots >= slotsNeeded;
     }

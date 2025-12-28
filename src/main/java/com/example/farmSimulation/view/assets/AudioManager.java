@@ -3,8 +3,13 @@ package com.example.farmSimulation.view.assets;
 import com.example.farmSimulation.config.SettingsMenuConfig;
 import javafx.scene.media.Media;
 import javafx.scene.media.MediaPlayer;
+import lombok.Getter;
+import lombok.Setter;
 
 import java.net.URL;
+
+@Getter
+@Setter
 
 /**
  * Quản lý âm thanh nền (Background Music) của game
@@ -78,14 +83,6 @@ public class AudioManager {
         if (mediaPlayer != null) {
             mediaPlayer.setVolume(this.currentVolume);
         }
-    }
-    
-    /**
-     * Lấy volume hiện tại
-     * @return Volume hiện tại (0.0 - 1.0)
-     */
-    public double getCurrentVolume() {
-        return currentVolume;
     }
     
     /**

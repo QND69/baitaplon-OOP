@@ -23,64 +23,80 @@ import javafx.scene.text.Text;
 import javafx.scene.text.TextAlignment;
 import javafx.util.Duration;
 
+/**
+ * Lớp HudView quản lý lớp giao diện hiển thị thông tin trên màn hình (Heads-Up Display).
+ * Bao gồm các thanh trạng thái, đồng hồ, thông tin tiền tệ và các nút chức năng.
+ */
 public class HudView extends Pane {
-    // Reference để lấy thông tin player và weather
+
+    // ==============================================================================================
+    // KHAI BÁO BIẾN (FIELDS)
+    // ==============================================================================================
+
+    // Tham chiếu đến các thành phần quản lý logic và tài nguyên
     private GameManager gameManager;
     private MainGameView mainGameView;
-    private ImageManager assetManager; // Reference to ImageManager for GUI icons
+    private ImageManager assetManager;
 
-    // Brightness setting (0.0 - 1.0)
+    // Cài đặt độ sáng màn hình (từ 0.0 đến 1.0)
     private double brightness = GameLogicConfig.DEFAULT_BRIGHTNESS;
 
-    // --- Top-Left: Player Stats ---
-    private final Rectangle levelRectangle; // Rounded Rectangle hiển thị Level (badge style)
-    private final Label levelLabel; // Text Level (hiển thị "LEVEL: X")
-    private final Rectangle xpBarBg; // Nền XP Bar
-    private final Rectangle xpBarFill; // Thanh XP
-    private final Rectangle staminaBarBg; // Nền Stamina Bar
-    private final Rectangle staminaBarFill; // Thanh Stamina
-    // private final Label staminaLabel; // [SỬA] Đã thay bằng icon, không dùng label text nữa
-    // private final Label xpLabel; // [SỬA] Đã thay bằng icon, không dùng label text nữa
+    // --- Khu vực Góc Trái-Trên: Chỉ số Người chơi ---
+    private final Rectangle levelRectangle; // Khung nền hiển thị cấp độ
+    private final Label levelLabel;         // Nhãn hiển thị số cấp độ
+    private final Rectangle xpBarBg;        // Nền thanh kinh nghiệm
+    private final Rectangle xpBarFill;      // Thanh kinh nghiệm hiện tại
+    private final Rectangle staminaBarBg;   // Nền thanh thể lực
+    private final Rectangle staminaBarFill; // Thanh thể lực hiện tại
 
-    // [MỚI] Icon cho Exp và Stamina
+    // Biểu tượng cho Kinh nghiệm và Thể lực
     private ImageView expIconView;
     private ImageView staminaIconView;
 
-    private final Label moneyLabel; // Label hiển thị số tiền
-    private final HBox moneyContainer; // Container for money icon and text (with shared background)
-    private ImageView moneyIcon; // Icon money (from GUI icons)
+    // Hiển thị Tiền tệ
+    private final Label moneyLabel;
+    private final HBox moneyContainer; // Container chứa biểu tượng và số tiền
+    private ImageView moneyIcon;
 
-    // [MỚI] Coordinates Display (Tọa độ)
-    private final Label coordsLabel; // Label hiển thị tọa độ X, Y
+    // Hiển thị Tọa độ
+    private final Label coordsLabel;
     private final HBox coordsContainer; // Container nền mờ cho tọa độ
     private boolean showCoordinates = HudConfig.DEFAULT_SHOW_COORDINATES;
 
-    // --- Top-Right: Info & Controls ---
-    private final Label dayLabel; // Label hiển thị Day (ngày)
-    private final Label timerLabel; // Label hiển thị Time (giờ trong ngày)
-    private final StackPane weatherIconPane; // Container for weather icon (ImageView)
-    private ImageView weatherIcon; // Icon thời tiết (Sunny/Rain from GUI icons)
-    private final StackPane shopIconButtonPane; // Container for shop icon button (clickable)
-    private ImageView shopIconButton; // Icon Shop (from GUI icons, clickable)
-    private final StackPane questIconButtonPane; // Container for quest icon button (clickable)
-    private ImageView questIconButton; // Quest Icon (from GUI icons, clickable)
-    private final StackPane settingsIconButtonPane; // Container for settings icon button (clickable)
-    private ImageView settingsIconButton; // Icon Settings (from GUI icons, clickable)
-    private final StackPane trashIconButtonPane; // Container for trash icon (for drag-and-drop deletion)
-    private ImageView trashIconButton; // Icon Trash Can (from GUI icons)
+    // --- Khu vực Góc Phải-Trên & Các nút chức năng ---
+    private final Label dayLabel;   // Nhãn hiển thị Ngày
+    private final Label timerLabel; // Nhãn hiển thị Giờ
+    private final StackPane weatherIconPane;
+    private ImageView weatherIcon;
 
-    // --- Overlays ---
-    private final Rectangle darknessOverlay; // Lớp phủ màu đen để tạo hiệu ứng tối
+    // Các nút chức năng (Icon Button)
+    private final StackPane shopIconButtonPane;
+    private ImageView shopIconButton;
 
-    // --- Temporary Text ---
-    private final Text temporaryText; // Đối tượng Text để hiển thị thông báo tạm thời
-    private SequentialTransition temporaryTextAnimation; // Animation cho text
+    private final StackPane questIconButtonPane;
+    private ImageView questIconButton;
+
+    private final StackPane settingsIconButtonPane;
+    private ImageView settingsIconButton;
+
+    private final StackPane trashIconButtonPane; // Thùng rác (để xóa item)
+    private ImageView trashIconButton;
+
+    // --- Các lớp phủ và Hiệu ứng ---
+    private final Rectangle darknessOverlay; // Lớp phủ màu đen tạo hiệu ứng ngày đêm
+    private final Text temporaryText;        // Text hiển thị thông báo tạm thời
+    private SequentialTransition temporaryTextAnimation; // Animation cho text tạm thời
+
+    // ==============================================================================================
+    // KHỞI TẠO (CONSTRUCTOR)
+    // ==============================================================================================
 
     public HudView() {
         double currentY = HudConfig.HUD_TOP_LEFT_Y;
 
-        // --- Khởi tạo Top-Left Elements ---
-        // Level Rounded Rectangle (Badge style)
+        // 1. Khởi tạo các thành phần Góc Trái-Trên (Level, Stats)
+
+        // Khung hiển thị Level dạng thẻ bo tròn
         levelRectangle = new Rectangle(HudConfig.HUD_TOP_LEFT_X, currentY,
                 HudConfig.LEVEL_RECTANGLE_WIDTH, HudConfig.LEVEL_RECTANGLE_HEIGHT);
         levelRectangle.setFill(HudConfig.LEVEL_BG_COLOR);
@@ -90,7 +106,7 @@ public class HudView extends Pane {
         levelRectangle.setArcHeight(HudConfig.LEVEL_RECTANGLE_CORNER_RADIUS * 2);
         levelRectangle.setMouseTransparent(true);
 
-        levelLabel = new Label("LEVEL: 1");
+        levelLabel = new Label(HudConfig.LEVEL_TEXT_PREFIX + "1");
         levelLabel.setLayoutX(HudConfig.HUD_TOP_LEFT_X);
         levelLabel.setLayoutY(currentY);
         levelLabel.setPrefSize(HudConfig.LEVEL_RECTANGLE_WIDTH, HudConfig.LEVEL_RECTANGLE_HEIGHT);
@@ -101,17 +117,15 @@ public class HudView extends Pane {
 
         currentY += HudConfig.LEVEL_RECTANGLE_HEIGHT + HudConfig.HUD_ELEMENT_SPACING;
 
-        // --- [SỬA] XP SECTION (Icon + Bar) ---
-        // 1. Icon Exp
+        // Thanh Kinh nghiệm (XP)
         expIconView = new ImageView();
-        expIconView.setFitWidth(HudConfig.GUI_ICON_SIZE); // 32.0
+        expIconView.setFitWidth(HudConfig.GUI_ICON_SIZE);
         expIconView.setFitHeight(HudConfig.GUI_ICON_SIZE);
         expIconView.setLayoutX(HudConfig.HUD_TOP_LEFT_X);
-        expIconView.setLayoutY(currentY); // Icon nằm ở vị trí currentY
+        expIconView.setLayoutY(currentY);
 
-        // 2. Bar (Bên phải icon, CĂN GIỮA vertical)
-        double barOffsetX = HudConfig.GUI_ICON_SIZE + 5.0; // Icon width + spacing
-        // [SỬA] Căn giữa: IconY + (IconHeight - BarHeight) / 2
+        // Tính toán vị trí thanh bar để căn giữa theo chiều dọc so với icon
+        double barOffsetX = HudConfig.GUI_ICON_SIZE + HudConfig.BAR_OFFSET_X;
         double xpBarCenterOffsetY = (HudConfig.GUI_ICON_SIZE - HudConfig.XP_BAR_HEIGHT) / 2.0;
 
         xpBarBg = new Rectangle(HudConfig.HUD_TOP_LEFT_X + barOffsetX, currentY + xpBarCenterOffsetY, HudConfig.XP_BAR_WIDTH, HudConfig.XP_BAR_HEIGHT);
@@ -124,18 +138,15 @@ public class HudView extends Pane {
         xpBarFill.setFill(HudConfig.XP_BAR_FILL_COLOR);
         xpBarFill.setMouseTransparent(true);
 
-        currentY += HudConfig.GUI_ICON_SIZE + HudConfig.HUD_ELEMENT_SPACING; // Tăng Y lên bằng chiều cao icon + spacing
+        currentY += HudConfig.GUI_ICON_SIZE + HudConfig.HUD_ELEMENT_SPACING;
 
-        // --- [SỬA] STAMINA SECTION (Icon + Bar) ---
-        // 1. Icon Stamina
+        // Thanh Thể lực (Stamina)
         staminaIconView = new ImageView();
         staminaIconView.setFitWidth(HudConfig.GUI_ICON_SIZE);
         staminaIconView.setFitHeight(HudConfig.GUI_ICON_SIZE);
         staminaIconView.setLayoutX(HudConfig.HUD_TOP_LEFT_X);
         staminaIconView.setLayoutY(currentY);
 
-        // 2. Bar (Bên phải icon, CĂN GIỮA vertical)
-        // [SỬA] Căn giữa: IconY + (IconHeight - BarHeight) / 2
         double staminaBarCenterOffsetY = (HudConfig.GUI_ICON_SIZE - HudConfig.STAMINA_BAR_HEIGHT) / 2.0;
 
         staminaBarBg = new Rectangle(HudConfig.HUD_TOP_LEFT_X + barOffsetX, currentY + staminaBarCenterOffsetY, HudConfig.STAMINA_BAR_WIDTH, HudConfig.STAMINA_BAR_HEIGHT);
@@ -150,54 +161,50 @@ public class HudView extends Pane {
 
         currentY += HudConfig.GUI_ICON_SIZE + HudConfig.HUD_ELEMENT_SPACING;
 
-        // Money Display - Grouped Icon and Text in a single container with shared background
-        moneyContainer = new HBox(5); // Spacing 5 between icon and text
+        // Hiển thị Tiền tệ
+        moneyContainer = new HBox(HudConfig.MONEY_CONTAINER_SPACING);
         moneyContainer.setAlignment(Pos.CENTER_LEFT);
         moneyContainer.setStyle(HudConfig.MONEY_CONTAINER_STYLE);
         moneyContainer.setLayoutX(HudConfig.HUD_TOP_LEFT_X);
         moneyContainer.setLayoutY(currentY);
         moneyContainer.setMouseTransparent(true);
 
-        // Money Icon
         moneyIcon = new ImageView();
         moneyIcon.setFitWidth(HudConfig.MONEY_ICON_SIZE);
         moneyIcon.setFitHeight(HudConfig.MONEY_ICON_SIZE);
         moneyIcon.setPreserveRatio(true);
         moneyContainer.getChildren().add(moneyIcon);
 
-        // Money Label (Text only, no background - background is on container)
-        moneyLabel = new Label("$0");
+        moneyLabel = new Label(HudConfig.MONEY_PREFIX + "0");
         moneyLabel.setStyle(HudConfig.MONEY_TEXT_STYLE);
         moneyLabel.setMouseTransparent(true);
         moneyContainer.getChildren().add(moneyLabel);
 
-        // [MỚI] Coordinates Display (Ngay dưới Money)
-        // Dùng HBox để có nền mờ giống tiền, nhưng style riêng (nhỏ hơn)
+        // Hiển thị Tọa độ (Ngay dưới phần Tiền)
         coordsContainer = new HBox();
         coordsContainer.setAlignment(Pos.CENTER_LEFT);
-        coordsContainer.setStyle(HudConfig.COORDS_CONTAINER_STYLE); // Style mờ hơn, nhỏ hơn
+        coordsContainer.setStyle(HudConfig.COORDS_CONTAINER_STYLE);
         coordsContainer.setLayoutX(HudConfig.HUD_TOP_LEFT_X);
-        // Vị trí Y = Vị trí Money + Offset
         coordsContainer.setLayoutY(currentY + HudConfig.COORDS_OFFSET_Y_FROM_MONEY);
         coordsContainer.setMouseTransparent(true);
-        coordsContainer.setVisible(HudConfig.DEFAULT_SHOW_COORDINATES); // Ẩn hiện theo config
+        coordsContainer.setVisible(HudConfig.DEFAULT_SHOW_COORDINATES);
 
-        coordsLabel = new Label("X: 0, Y: 0"); // Giá trị khởi tạo
-        coordsLabel.setStyle(HudConfig.COORDS_TEXT_STYLE); // Font nhỏ, trắng
+        coordsLabel = new Label(HudConfig.COORDS_DEFAULT_TEXT);
+        coordsLabel.setStyle(HudConfig.COORDS_TEXT_STYLE);
         coordsContainer.getChildren().add(coordsLabel);
 
-        // --- Khởi tạo Top-Right Elements (từ trên xuống: Settings, Timer, Weather) ---
-        // Tính toán vị trí X để dính sát cạnh phải: Icons centered at SCREEN_WIDTH - MARGIN - RADIUS
+        // 2. Khởi tạo các thành phần Góc Phải-Trên (Cài đặt, Thời gian, Thời tiết)
+
+        // Tính toán vị trí X để căn lề phải
         double iconRadius = HudConfig.ICON_BUTTON_SIZE / 2;
         double settingsIconCenterX = WindowConfig.SCREEN_WIDTH - HudConfig.HUD_TOP_RIGHT_MARGIN - iconRadius;
         currentY = HudConfig.HUD_TOP_RIGHT_Y;
 
-        // Settings Icon Button (trên cùng ở Top-Right) - Use ImageView from GUI icons
+        // Nút Cài đặt (Settings)
         settingsIconButtonPane = new StackPane();
         settingsIconButtonPane.setLayoutX(settingsIconCenterX - iconRadius);
         settingsIconButtonPane.setLayoutY(currentY);
         settingsIconButtonPane.setPrefSize(HudConfig.ICON_BUTTON_SIZE, HudConfig.ICON_BUTTON_SIZE);
-        // No background - transparent
 
         settingsIconButton = new ImageView();
         settingsIconButton.setFitWidth(HudConfig.ICON_BUTTON_SIZE);
@@ -206,33 +213,32 @@ public class HudView extends Pane {
         settingsIconButtonPane.getChildren().add(settingsIconButton);
 
         settingsIconButtonPane.setOnMouseClicked(this::onSettingsIconClicked);
-        // No hover effect background - clean look
 
         currentY += HudConfig.ICON_BUTTON_SIZE + HudConfig.HUD_TOP_RIGHT_ELEMENT_SPACING;
 
-        // Day Label (dòng 1) - dưới Settings ở Right side
+        // Nhãn Ngày (Day)
         dayLabel = new Label(HudConfig.DAY_DEFAULT_TEXT);
         dayLabel.setStyle(HudConfig.DAY_STYLE_CSS);
         dayLabel.setPrefWidth(HudConfig.TIMER_LABEL_WIDTH);
-        dayLabel.setAlignment(Pos.CENTER_RIGHT); // Căn text sang phải
+        dayLabel.setAlignment(Pos.CENTER_RIGHT);
         dayLabel.setLayoutX(WindowConfig.SCREEN_WIDTH - HudConfig.HUD_TOP_RIGHT_MARGIN - HudConfig.TIMER_LABEL_WIDTH);
         dayLabel.setLayoutY(currentY);
         dayLabel.setMouseTransparent(true);
 
-        currentY += 20.0; // Khoảng cách giữa Day và Time labels
+        currentY += HudConfig.DAY_TIME_SPACING_Y;
 
-        // Time Label (dòng 2) - dưới Day ở Right side
+        // Nhãn Thời gian (Time)
         timerLabel = new Label(HudConfig.TIME_DEFAULT_TEXT);
         timerLabel.setStyle(HudConfig.TIME_STYLE_CSS);
         timerLabel.setPrefWidth(HudConfig.TIMER_LABEL_WIDTH);
-        timerLabel.setAlignment(Pos.CENTER_RIGHT); // Căn text sang phải
+        timerLabel.setAlignment(Pos.CENTER_RIGHT);
         timerLabel.setLayoutX(WindowConfig.SCREEN_WIDTH - HudConfig.HUD_TOP_RIGHT_MARGIN - HudConfig.TIMER_LABEL_WIDTH);
         timerLabel.setLayoutY(currentY);
         timerLabel.setMouseTransparent(true);
 
-        currentY += 25.0; // Chiều cao của time label + spacing
+        currentY += HudConfig.TIME_WEATHER_SPACING_Y;
 
-        // Weather Icon (dưới Timer ở Right side) - Use ImageView from GUI icons
+        // Biểu tượng Thời tiết
         double weatherIconRadius = HudConfig.WEATHER_ICON_SIZE / 2;
         double weatherIconCenterX = WindowConfig.SCREEN_WIDTH - HudConfig.HUD_TOP_RIGHT_MARGIN - weatherIconRadius;
         weatherIconPane = new StackPane();
@@ -249,7 +255,7 @@ public class HudView extends Pane {
 
         currentY += HudConfig.WEATHER_ICON_SIZE + HudConfig.HUD_TOP_RIGHT_ELEMENT_SPACING;
 
-        // Quest Icon Button (dưới Weather Icon ở Top-Right) - Use ImageView from GUI icons
+        // Nút Nhiệm vụ (Quest)
         double questIconRadius = HudConfig.ICON_BUTTON_SIZE / 2;
         double questIconCenterX = WindowConfig.SCREEN_WIDTH - HudConfig.HUD_TOP_RIGHT_MARGIN - questIconRadius;
 
@@ -257,7 +263,6 @@ public class HudView extends Pane {
         questIconButtonPane.setLayoutX(questIconCenterX - questIconRadius);
         questIconButtonPane.setLayoutY(currentY);
         questIconButtonPane.setPrefSize(HudConfig.ICON_BUTTON_SIZE, HudConfig.ICON_BUTTON_SIZE);
-        // No background - transparent
 
         questIconButton = new ImageView();
         questIconButton.setFitWidth(HudConfig.ICON_BUTTON_SIZE);
@@ -266,27 +271,25 @@ public class HudView extends Pane {
         questIconButtonPane.getChildren().add(questIconButton);
 
         questIconButtonPane.setOnMouseClicked(e -> {
-            // Block quest interaction when game is paused
+            // Chặn tương tác nếu game đang tạm dừng
             if (gameManager != null && gameManager.isPaused()) return;
 
             if (mainGameView != null) {
                 mainGameView.toggleQuestBoard();
             }
         });
-        // No hover effect background - clean look
 
-        // --- Khởi tạo Bottom-Right Elements (Shop Icon) ---
-        // Tính toán vị trí để dính sát cạnh phải và dưới: Icon centered at SCREEN_WIDTH - MARGIN - RADIUS
+        // 3. Khởi tạo các nút Góc Dưới (Cửa hàng, Thùng rác)
+
         double shopIconRadius = HudConfig.ICON_BUTTON_SIZE / 2;
         double shopIconCenterX = WindowConfig.SCREEN_WIDTH - HudConfig.HUD_BOTTOM_RIGHT_MARGIN - shopIconRadius;
         double shopIconCenterY = WindowConfig.SCREEN_HEIGHT - HudConfig.HUD_BOTTOM_RIGHT_MARGIN - shopIconRadius;
 
-        // Shop Icon Button (góc dưới-phải) - Use ImageView from GUI icons
+        // Nút Cửa hàng (Shop) - Góc Dưới Phải
         shopIconButtonPane = new StackPane();
         shopIconButtonPane.setLayoutX(shopIconCenterX - shopIconRadius);
         shopIconButtonPane.setLayoutY(shopIconCenterY - shopIconRadius);
         shopIconButtonPane.setPrefSize(HudConfig.ICON_BUTTON_SIZE, HudConfig.ICON_BUTTON_SIZE);
-        // No background - transparent
 
         shopIconButton = new ImageView();
         shopIconButton.setFitWidth(HudConfig.ICON_BUTTON_SIZE);
@@ -295,10 +298,8 @@ public class HudView extends Pane {
         shopIconButtonPane.getChildren().add(shopIconButton);
 
         shopIconButtonPane.setOnMouseClicked(this::onShopIconClicked);
-        // No hover effect background - clean look
 
-        // Trash Can Icon (góc dưới-trái) - Use ImageView from GUI icons
-        // Position at bottom-left: strictly calculated
+        // Nút Thùng rác (Trash) - Góc Dưới Trái
         double trashIconX = HudConfig.HUD_TOP_LEFT_X;
         double trashIconY = WindowConfig.SCREEN_HEIGHT - HudConfig.HUD_BOTTOM_RIGHT_MARGIN - HudConfig.ICON_BUTTON_SIZE;
 
@@ -306,16 +307,15 @@ public class HudView extends Pane {
         trashIconButtonPane.setLayoutX(trashIconX);
         trashIconButtonPane.setLayoutY(trashIconY);
         trashIconButtonPane.setPrefSize(HudConfig.ICON_BUTTON_SIZE, HudConfig.ICON_BUTTON_SIZE);
-        // No background - transparent
 
         trashIconButton = new ImageView();
         trashIconButton.setFitWidth(HudConfig.ICON_BUTTON_SIZE);
         trashIconButton.setFitHeight(HudConfig.ICON_BUTTON_SIZE);
         trashIconButton.setPreserveRatio(true);
         trashIconButtonPane.getChildren().add(trashIconButton);
-        // Trash icon is not clickable, only for drag-and-drop detection
+        // Thùng rác không nhận sự kiện click, chỉ dùng để kéo thả
 
-        // --- Khởi tạo Temporary Text ---
+        // 4. Khởi tạo các thành phần phụ trợ (Text tạm, Màn hình tối)
         temporaryText = new Text();
         temporaryText.setFont(HudConfig.TEMP_TEXT_FONT);
         temporaryText.setFill(HudConfig.TEMP_TEXT_COLOR);
@@ -324,36 +324,36 @@ public class HudView extends Pane {
         temporaryText.setOpacity(0);
         temporaryText.setManaged(false);
 
-        // Khởi tạo Lớp phủ Tối
+        // Lớp phủ màu đen
         this.darknessOverlay = new Rectangle(WindowConfig.SCREEN_WIDTH, WindowConfig.SCREEN_HEIGHT);
         this.darknessOverlay.setFill(Color.BLACK);
         this.darknessOverlay.setOpacity(0.0);
         this.darknessOverlay.setMouseTransparent(true);
 
-        // Thêm tất cả vào pane theo đúng thứ tự z-index:
-        // 1. Darkness Overlay (phủ lên world, nhưng dưới HUD icons)
+        // Thêm tất cả vào pane theo thứ tự hiển thị (z-index)
+        // Lớp phủ tối nằm dưới cùng để không che khuất các icon HUD
         this.getChildren().add(darknessOverlay);
 
-        // 2. HUD Icons/Text (ở trên darkness overlay để luôn visible và clickable)
         this.getChildren().addAll(
                 levelRectangle, levelLabel,
-                // [SỬA] Thêm Icon và Bar mới, bỏ Label cũ
                 expIconView, xpBarBg, xpBarFill,
                 staminaIconView, staminaBarBg, staminaBarFill,
-                moneyContainer, // Money Container (Icon + Text with shared background)
-                coordsContainer, // [MỚI] Coordinates Container
-                dayLabel, timerLabel, weatherIconPane, questIconButtonPane, // Day, Time, Weather Icon, Quest Icon (Top-Right)
-                shopIconButtonPane, // Shop Icon (ImageView) ở Bottom-Right
-                trashIconButtonPane, // Trash Can Icon (ImageView) ở Bottom-Left
-                settingsIconButtonPane, // Settings Icon (ImageView) ở Top-Right
+                moneyContainer,
+                coordsContainer,
+                dayLabel, timerLabel, weatherIconPane, questIconButtonPane,
+                shopIconButtonPane,
+                trashIconButtonPane,
+                settingsIconButtonPane,
                 temporaryText
         );
 
-        this.setMouseTransparent(false); // Cần nhận click cho icon buttons
+        this.setMouseTransparent(false); // Đảm bảo HUD nhận được sự kiện chuột
     }
-    /**
-     * Set GameManager và MainGameView references
-     */
+
+    // ==============================================================================================
+    // THIẾT LẬP PHỤ THUỘC (DEPENDENCY INJECTION)
+    // ==============================================================================================
+
     public void setGameManager(GameManager gameManager) {
         this.gameManager = gameManager;
     }
@@ -363,50 +363,44 @@ public class HudView extends Pane {
     }
 
     /**
-     * Set ImageManager reference and load GUI icons
+     * Thiết lập AssetManager và tải các icon giao diện.
      */
     public void setAssetManager(ImageManager assetManager) {
         this.assetManager = assetManager;
-        updateGuiIcons(); // Load icons when AssetManager is available
+        updateGuiIcons();
     }
 
     /**
-     * Load and update GUI icons from ImageManager
+     * Tải và cập nhật hình ảnh cho các icon giao diện từ ImageManager.
      */
     private void updateGuiIcons() {
         if (assetManager == null) return;
 
-        // Load Money icon
         Image moneyIconImage = assetManager.getGuiIcon("MONEY");
         if (moneyIconImage != null && moneyIcon != null) {
             moneyIcon.setImage(moneyIconImage);
         }
 
-        // Load Settings icon
         Image settingsIconImage = assetManager.getGuiIcon("SETTINGS");
         if (settingsIconImage != null && settingsIconButton != null) {
             settingsIconButton.setImage(settingsIconImage);
         }
 
-        // Load Shop icon
         Image shopIconImage = assetManager.getGuiIcon("SHOP");
         if (shopIconImage != null && shopIconButton != null) {
             shopIconButton.setImage(shopIconImage);
         }
 
-        // Load Trash Can icon
         Image trashIconImage = assetManager.getGuiIcon("TRASH");
         if (trashIconImage != null && trashIconButton != null) {
             trashIconButton.setImage(trashIconImage);
         }
 
-        // Load Quest icon
         Image questIconImage = assetManager.getGuiIcon("QUEST");
         if (questIconImage != null && questIconButton != null) {
             questIconButton.setImage(questIconImage);
         }
 
-        // [MỚI] Load Stamina & Exp Icons
         Image staminaIconImage = assetManager.getGuiIcon("STAMINA");
         if (staminaIconImage != null && staminaIconView != null) {
             staminaIconView.setImage(staminaIconImage);
@@ -416,15 +410,16 @@ public class HudView extends Pane {
         if (expIconImage != null && expIconView != null) {
             expIconView.setImage(expIconImage);
         }
-
-        // Weather icon will be updated in updateWeather() method
     }
 
+    // ==============================================================================================
+    // XỬ LÝ SỰ KIỆN (EVENT HANDLERS)
+    // ==============================================================================================
+
     /**
-     * Event handler cho Shop Icon click
+     * Xử lý sự kiện click vào biểu tượng Cửa hàng.
      */
     private void onShopIconClicked(MouseEvent e) {
-        // Block shop interaction when game is paused
         if (gameManager != null && gameManager.isPaused()) return;
 
         if (mainGameView != null) {
@@ -433,7 +428,7 @@ public class HudView extends Pane {
     }
 
     /**
-     * Event handler cho Settings Icon click
+     * Xử lý sự kiện click vào biểu tượng Cài đặt.
      */
     private void onSettingsIconClicked(MouseEvent e) {
         if (gameManager != null) {
@@ -441,75 +436,64 @@ public class HudView extends Pane {
         }
     }
 
+    // ==============================================================================================
+    // CẬP NHẬT GIAO DIỆN (UI UPDATES)
+    // ==============================================================================================
+
     /**
-     * Cập nhật hiển thị player stats (Level, XP, Stamina)
+     * Cập nhật các chỉ số người chơi như Level, XP, Thể lực và Tọa độ.
      */
     public void updatePlayerStats() {
         if (gameManager == null || gameManager.getMainPlayer() == null) return;
 
         var player = gameManager.getMainPlayer();
 
-        // Update Level
-        levelLabel.setText("LEVEL: " + player.getLevel());
+        // Cập nhật Level
+        levelLabel.setText(HudConfig.LEVEL_TEXT_PREFIX + player.getLevel());
 
-        // Update XP Bar - Sử dụng getter từ Lombok (@Getter annotation)
+        // Cập nhật Thanh Kinh nghiệm
         double xpProgress = 0.0;
         if (player.getXpToNextLevel() > 0) {
             xpProgress = Math.min(1.0, player.getCurrentXP() / player.getXpToNextLevel());
         }
         xpBarFill.setWidth(HudConfig.XP_BAR_WIDTH * xpProgress);
 
-        // Update Stamina Bar - Sử dụng getter từ Lombok
+        // Cập nhật Thanh Thể lực
         double staminaProgress = 0.0;
         if (player.getMaxStamina() > 0) {
             staminaProgress = Math.min(1.0, player.getCurrentStamina() / player.getMaxStamina());
         }
         staminaBarFill.setWidth(HudConfig.STAMINA_BAR_WIDTH * staminaProgress);
 
-        // Dynamic Stamina Bar Color based on remaining percentage
+        // Đổi màu thanh thể lực dựa trên phần trăm còn lại (Xanh -> Vàng -> Đỏ)
         double percentage = staminaProgress;
         Color staminaColor;
-        if (percentage > 0.6) {
-            // Green when above 60%
-            staminaColor = Color.web("#2ecc71");
-        } else if (percentage > 0.15) {
-            // Yellow when between 15% and 60%
-            staminaColor = Color.web("#f1c40f");
+        if (percentage > HudConfig.STAMINA_THRESHOLD_HIGH) {
+            staminaColor = HudConfig.STAMINA_COLOR_HIGH;
+        } else if (percentage > HudConfig.STAMINA_THRESHOLD_MEDIUM) {
+            staminaColor = HudConfig.STAMINA_COLOR_MEDIUM;
         } else {
-            // Red when 15% or below
-            staminaColor = Color.web("#e74c3c");
+            staminaColor = HudConfig.STAMINA_COLOR_LOW;
         }
         staminaBarFill.setFill(staminaColor);
 
-        // [MỚI] Cập nhật tọa độ Player (nếu đang hiển thị)
+        // Cập nhật Tọa độ
         if (showCoordinates && coordsLabel != null) {
-            // Lấy tọa độ Tile thực tế bằng cách làm tròn (hoặc ép kiểu int)
-            // Trong game này, tileX và tileY trong Player đã là tọa độ Tile (đơn vị 1 tile = 1 đơn vị)
-            // chứ không phải pixel. (Xem Player.java constructor và WorldConfig)
-            // Player.java: this.tileX = GameLogicConfig.PLAYER_START_X; (ví dụ 10.0)
-
-            // Trục X: Từ trái sang phải -> OK
             int tileX = (int) Math.floor(player.getTileX() / WorldConfig.TILE_SIZE);
-
-            // Trục Y: Trong game engine (JavaFX), Y tăng từ trên xuống dưới.
-            // Yêu cầu của bạn: Hệ tọa độ "logic" (Ox dưới lên).
-            // => Khi nhân vật đi xuống (Y tăng trong engine), tọa độ hiển thị phải GIẢM.
-            // => Khi nhân vật đi lên (Y giảm trong engine), tọa độ hiển thị phải TĂNG.
-            // => Công thức đơn giản nhất là đảo dấu: -tileY
-
+            // Hệ thống tọa độ của JavaFX tăng dần từ trên xuống dưới.
+            // Để hiển thị tọa độ theo trục Y hướng từ dưới lên (logic game thông thường), ta cần đảo dấu giá trị này.
             int tileY = -(int) Math.floor(player.getTileY() / WorldConfig.TILE_SIZE);
 
-            coordsLabel.setText(String.format("X: %d, Y: %d", tileX, tileY));
+            coordsLabel.setText(String.format(HudConfig.COORDS_FORMAT, tileX, tileY));
         }
     }
 
     /**
-     * Cập nhật hiển thị thời tiết
+     * Cập nhật biểu tượng thời tiết.
      */
     public void updateWeather(boolean isRaining) {
         if (assetManager == null || weatherIcon == null) return;
 
-        // Load weather icon from GUI icons
         Image weatherIconImage;
         if (isRaining) {
             weatherIconImage = assetManager.getGuiIcon("RAIN");
@@ -523,7 +507,39 @@ public class HudView extends Pane {
     }
 
     /**
-     * Hiển thị một đoạn text tạm thời trên đầu người chơi
+     * Cập nhật hiển thị đồng hồ thời gian trong game.
+     */
+    public void updateTimer(int day, String timeString) {
+        this.dayLabel.setText(HudConfig.DAY_PREFIX + day);
+        this.timerLabel.setText(timeString);
+    }
+
+    /**
+     * Cập nhật số tiền hiển thị.
+     */
+    public void updateMoney(double amount) {
+        this.moneyLabel.setText(HudConfig.MONEY_PREFIX + (int)amount);
+    }
+
+    /**
+     * Cập nhật độ tối màn hình (hiệu ứng ngày/đêm) dựa trên cường độ ánh sáng và cài đặt độ sáng.
+     */
+    public void updateLighting(double intensity) {
+        final double MAX_DARKNESS = 0.95;
+        double naturalDarkness = 1.0 - intensity;
+
+        // Công thức tính độ mờ: độ tối tự nhiên cộng với hệ số điều chỉnh độ sáng người dùng cài đặt.
+        // Điều này đảm bảo màn hình không bao giờ quá tối nếu người chơi tăng độ sáng.
+        double finalOpacity = naturalDarkness + (1.0 - brightness) * 0.5;
+
+        // Giới hạn độ tối tối đa để tránh màn hình đen hoàn toàn
+        finalOpacity = Math.max(0.0, Math.min(finalOpacity, MAX_DARKNESS));
+
+        this.darknessOverlay.setOpacity(finalOpacity);
+    }
+
+    /**
+     * Hiển thị một đoạn văn bản thông báo tạm thời trên đầu người chơi.
      */
     public void showTemporaryText(String message, double playerScreenX, double playerScreenY) {
         if (temporaryTextAnimation != null && temporaryTextAnimation.getStatus().equals(javafx.animation.Animation.Status.RUNNING)) {
@@ -545,58 +561,26 @@ public class HudView extends Pane {
         temporaryTextAnimation.play();
     }
 
-    public void updateTimer(int day, String timeString) {
-        this.dayLabel.setText("Day " + day);
-        this.timerLabel.setText(timeString);
-        // Vị trí X đã được set cố định trong constructor, không cần tính lại
-        // Day và Time labels đã có fixed width và alignment CENTER_RIGHT
-    }
+    // ==============================================================================================
+    // TIỆN ÍCH & LOGIC PHỤ TRỢ (HELPERS)
+    // ==============================================================================================
 
-    /**
-     * Cập nhật độ tối của màn hình dựa trên cường độ ánh sáng từ Model
-     * Áp dụng brightness setting sử dụng overlay method
-     */
-    public void updateLighting(double intensity) {
-        final double MAX_DARKNESS = 0.95; // Maximum opacity clamp
-        // Tính opacity tự nhiên dựa trên intensity (0.0 = sáng, 1.0 = tối)
-        double naturalDarkness = 1.0 - intensity;
-
-        // Áp dụng brightness modifier sử dụng overlay method
-        // Formula: finalOpacity = naturalDarkness + (1.0 - brightness) * 0.5
-        // Nếu brightness = 1.0 (Max): finalOpacity = naturalDarkness + 0 = naturalDarkness (không thêm tối)
-        // Nếu brightness = 0.0 (Min): finalOpacity = naturalDarkness + 0.5 (thêm tối đáng kể)
-        double finalOpacity = naturalDarkness + (1.0 - brightness) * 0.5;
-
-        // Clamp opacity giữa 0.0 và MAX_DARKNESS (0.95)
-        finalOpacity = Math.max(0.0, Math.min(finalOpacity, MAX_DARKNESS));
-
-        this.darknessOverlay.setOpacity(finalOpacity);
-    }
-
-    /**
-     * Set brightness (0.0 - 1.0)
-     */
     public void setBrightness(double brightness) {
         this.brightness = Math.max(GameLogicConfig.MIN_BRIGHTNESS, Math.min(GameLogicConfig.MAX_BRIGHTNESS, brightness));
     }
 
-    /**
-     * Get brightness
-     */
     public double getBrightness() {
         return brightness;
     }
 
     /**
-     * Check if mouse is over Trash Can icon (for drag-and-drop deletion)
-     * @param screenX Screen X coordinate
-     * @param screenY Screen Y coordinate
-     * @return true if mouse is over Trash Can bounds
+     * Kiểm tra xem chuột có đang nằm trên biểu tượng Thùng rác không.
+     * Sử dụng để xác định hành động kéo thả xóa vật phẩm.
      */
     public boolean isMouseOverTrash(double screenX, double screenY) {
         if (trashIconButtonPane == null) return false;
 
-        // Convert screen coordinates to local coordinates
+        // Chuyển đổi tọa độ màn hình sang tọa độ cục bộ của Pane
         javafx.geometry.Point2D localPoint = this.sceneToLocal(screenX, screenY);
 
         double x = trashIconButtonPane.getLayoutX();
@@ -608,21 +592,10 @@ public class HudView extends Pane {
                 localPoint.getY() >= y && localPoint.getY() <= y + height;
     }
 
-    /**
-     * Cập nhật hiển thị số tiền
-     */
-    public void updateMoney(double amount) {
-        this.moneyLabel.setText("$" + (int)amount);
-    }
-
-    /**
-     * Lấy darknessOverlay để điều chỉnh độ tối khi mưa
-     */
     public Rectangle getDarknessOverlay() {
         return darknessOverlay;
     }
 
-    // [MỚI] Bật/Tắt hiển thị tọa độ
     public void setCoordinatesVisible(boolean visible) {
         this.showCoordinates = visible;
         if (coordsContainer != null) {
@@ -630,7 +603,6 @@ public class HudView extends Pane {
         }
     }
 
-    // [MỚI] Kiểm tra trạng thái hiển thị tọa độ
     public boolean isCoordinatesVisible() {
         return showCoordinates;
     }

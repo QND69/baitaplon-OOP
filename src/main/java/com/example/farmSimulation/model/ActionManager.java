@@ -15,15 +15,18 @@ import java.util.List;
 @Getter
 @Setter
 public class ActionManager {
-    private final List<TimedTileAction> pendingActions;  // Thêm danh sách hành động chờ
+
+    private final List<TimedTileAction> pendingActions;  // Danh sách các hành động đang chờ xử lý
     private boolean mapNeedsUpdate = false;
 
-    // Thêm tham chiếu đến Model và View của Player
+    // Tham chiếu đến Model và View của người chơi chính
     private final Player mainPlayer;
     private final PlayerView playerView;
-    private FenceManager fenceManager; // Quản lý hàng rào (sẽ được set từ bên ngoài)
-    private AnimalManager animalManager; // Quản lý động vật (sẽ được set từ bên ngoài)
-    private QuestManager questManager; // Quản lý quest (sẽ được set từ bên ngoài)
+
+    // Các trình quản lý phụ thuộc (sẽ được gán giá trị từ bên ngoài sau khi khởi tạo)
+    private FenceManager fenceManager;   // Quản lý logic nối hàng rào
+    private AnimalManager animalManager; // Quản lý danh sách động vật
+    private QuestManager questManager;   // Quản lý nhiệm vụ
 
     public ActionManager(Player mainPlayer, PlayerView playerView) {
         this.pendingActions = new ArrayList<>();
@@ -31,263 +34,302 @@ public class ActionManager {
         this.playerView = playerView;
     }
 
-    public void setFenceManager(FenceManager fenceManager) {
-        this.fenceManager = fenceManager;
-    }
-
-    public void setAnimalManager(AnimalManager animalManager) {
-        this.animalManager = animalManager;
-    }
-
-    public void setQuestManager(QuestManager questManager) {
-        this.questManager = questManager;
-    }
-
     public void addPendingAction(TimedTileAction action) {
         pendingActions.add(action);
     }
 
     /**
-     * Hàm này được gọi 60 LẦN/GIÂY.
-     * Nhiệm vụ: Lặp qua tất cả hành động chờ, "tick" chúng,
-     * và thực thi những hành động đã hết giờ.
+     * Hàm này được gọi liên tục trong vòng lặp game (khoảng 60 lần/giây).
+     * Nhiệm vụ: Duyệt qua danh sách hành động chờ, cập nhật tiến độ (tick)
+     * và thực thi logic khi hành động hoàn tất.
      */
     public void updateTimedActions(WorldMap worldMap, MainGameView mainGameView, double worldOffsetX, double worldOffsetY) {
-        // Dùng Iterator để chúng ta có thể XÓA phần tử khỏi List pendingActions một cách an toàn
+        // Sử dụng Iterator để có thể xóa phần tử khỏi danh sách pendingActions một cách an toàn trong khi duyệt
         Iterator<TimedTileAction> iterator = pendingActions.iterator();
 
         while (iterator.hasNext()) {
             TimedTileAction action = iterator.next();
 
-            // Gọi tick(). Nếu nó trả về "true" (hết giờ)
-            if (action.tick()) { // Cho phép action không đổi tile
-                // THỰC THI HÀNH ĐỘNG: Thay đổi Model
-                if (action.getNewTileData() != null) {
-                    // [SỬA] Lưu lại trạng thái cũ để kiểm tra xem có phải vừa phá rào không
-                    TileData oldData = worldMap.getTileData(action.getCol(), action.getRow());
-                    boolean wasFence = (oldData.getBaseTileType() == Tile.FENCE);
+            // Gọi hàm tick() để tăng biến đếm thời gian. Nếu trả về true nghĩa là hành động đã hoàn tất.
+            if (action.tick()) {
 
-                    TileData newData = action.getNewTileData();
-                    worldMap.setTileData(action.getCol(), action.getRow(), newData);
-                    this.mapNeedsUpdate = true; // Báo cho View biết cần vẽ lại bản đồ
+                // Bước 1: Cập nhật thay đổi trên bản đồ (đất, hàng rào...)
+                processTileUpdates(action, worldMap);
 
-                    // Nếu vừa ĐẶT hàng rào (GRASS -> FENCE)
-                    if (newData.getFenceData() != null && newData.getBaseTileType() == Tile.FENCE && fenceManager != null) {
-                        fenceManager.updateFencePattern(action.getCol(), action.getRow());
-                    }
-                    // [SỬA] Nếu vừa PHÁ hàng rào (FENCE -> GRASS)
-                    // Cần gọi update để các ô hàng xóm biết mà ngắt kết nối
-                    else if (wasFence && newData.getBaseTileType() != Tile.FENCE && fenceManager != null) {
-                        fenceManager.updateFencePattern(action.getCol(), action.getRow());
-                    }
-                }
+                // Bước 2: Xử lý tiêu thụ vật phẩm hoặc giảm độ bền công cụ
+                processItemConsumption(action, mainGameView);
 
-                // XỬ LÝ TIÊU THỤ ITEM / ĐỘ BỀN
-                // Logic này giờ chạy ĐỒNG BỘ với việc thay đổi Map
-                if (action.isConsumeItem()) {
-                    // Gọi hàm tiêu thụ item ở slot đã lưu
-                    // (Hàm này sẽ xử lý cả việc trừ số lượng stackable hoặc trừ độ bền item)
-                    mainPlayer.consumeItemAtSlot(action.getItemSlotIndex(), 1);
+                // Bước 3: Xử lý tương tác với động vật (ví dụ: nhặt trứng -> xóa trứng trên map)
+                processAnimalInteraction(action);
 
-                    // Cập nhật UI Hotbar ngay lập tức
-                    mainGameView.updateHotbar();
-                }
+                // Bước 4: Xử lý thu hoạch, rơi vật phẩm và cộng vật phẩm vào túi đồ
+                processHarvestResult(action, worldMap, mainGameView, worldOffsetX, worldOffsetY);
 
-                // XỬ LÝ ĐỘNG VẬT: Xóa động vật sau khi action hoàn thành (cho nhặt trứng)
-                if (action.getAnimalWorldX() != 0 || action.getAnimalWorldY() != 0) {
-                    if (animalManager != null) {
-                        Animal animalToRemove = animalManager.getAnimalAt(action.getAnimalWorldX(), action.getAnimalWorldY(), WorldConfig.TILE_SIZE);
-                        if (animalToRemove != null) {
-                            animalManager.removeAnimal(animalToRemove);
-                        }
-                    }
-                }
+                // Bước 5: Đặt lại trạng thái người chơi và cộng điểm kinh nghiệm (XP)
+                resetPlayerStateAndGrantXP(action);
 
-                // KÍCH HOẠT ANIMATION THU HOẠCH VÀ THÊM ITEM VÀO INVENTORY
-                if (action.getHarvestedItem() != null && action.getHarvestedAmount() > 0) {
-                    // Xác định độ bền để sử dụng
-                    ItemType harvestedItem = action.getHarvestedItem();
-                    int durabilityToUse = action.getHarvestedDurability();
-                    int totalAmount = action.getHarvestedAmount();
-
-                    // Nếu độ bền <= 0, kiểm tra xem có cần dùng max durability không
-                    if (durabilityToUse <= 0 && harvestedItem.hasDurability()) {
-                        // Item có độ bền nhưng không được lưu (initial spawn) -> dùng max durability
-                        durabilityToUse = harvestedItem.getMaxDurability();
-                    }
-
-                    // Xử lý đặc biệt cho WOOD: Nếu inventory đầy, đặt xuống đất (giống như thịt)
-                    if (harvestedItem == ItemType.WOOD) {
-                        // Tính số lượng có thể thêm vào inventory
-                        int addableAmount = mainPlayer.calculateAddableAmount(harvestedItem, totalAmount);
-                        int remainingAmount = totalAmount - addableAmount;
-
-                        // Thêm phần có thể vào inventory
-                        if (addableAmount > 0) {
-                            mainPlayer.addItem(harvestedItem, addableAmount, durabilityToUse);
-                        }
-
-                        // Nếu còn lại, đặt xuống đất (giống logic thịt)
-                        if (remainingAmount > 0) {
-                            // Tính vị trí đặt gỗ (tại ô cây bị chặt)
-                            int treeCol = action.getCol();
-                            int treeRow = action.getRow();
-
-                            // Tìm ô trống xung quanh để đặt gỗ
-                            int searchRadius = GameLogicConfig.ITEM_DROP_SEARCH_RADIUS;
-                            int finalCol = -1;
-                            int finalRow = -1;
-                            boolean foundSpot = false;
-
-                            // Kiểm tra ô lý tưởng trước (ô cây bị chặt)
-                            TileData idealTile = worldMap.getTileData(treeCol, treeRow);
-                            if (idealTile.getGroundItem() == null) {
-                                finalCol = treeCol;
-                                finalRow = treeRow;
-                                foundSpot = true;
-                            } else if (idealTile.getGroundItem() == ItemType.WOOD) {
-                                // Trùng loại -> Cộng dồn
-                                finalCol = treeCol;
-                                finalRow = treeRow;
-                                foundSpot = true;
-                            } else {
-                                // Ô lý tưởng đã có item khác -> Tìm xung quanh
-                                for (int r = treeRow - searchRadius; r <= treeRow + searchRadius; r++) {
-                                    for (int c = treeCol - searchRadius; c <= treeCol + searchRadius; c++) {
-                                        if (r == treeRow && c == treeCol) continue;
-
-                                        TileData checkTile = worldMap.getTileData(c, r);
-                                        if (checkTile.getGroundItem() == null) {
-                                            finalCol = c;
-                                            finalRow = r;
-                                            foundSpot = true;
-                                            break;
-                                        } else if (checkTile.getGroundItem() == ItemType.WOOD) {
-                                            // Trùng loại -> Cộng dồn
-                                            finalCol = c;
-                                            finalRow = r;
-                                            foundSpot = true;
-                                            break;
-                                        }
-                                    }
-                                    if (foundSpot) break;
-                                }
-                            }
-
-                            // Nếu vẫn không tìm thấy chỗ -> Bắt buộc phải đè lên ô lý tưởng (Fallback)
-                            if (!foundSpot) {
-                                finalCol = treeCol;
-                                finalRow = treeRow;
-                            }
-
-                            // Đặt gỗ vào ô đã chọn
-                            TileData finalTile = worldMap.getTileData(finalCol, finalRow);
-
-                            if (finalTile.getGroundItem() == ItemType.WOOD) {
-                                // Cộng dồn
-                                finalTile.setGroundItemAmount(finalTile.getGroundItemAmount() + remainingAmount);
-                            } else {
-                                // Đặt mới hoặc đè
-                                finalTile.setGroundItem(ItemType.WOOD);
-                                finalTile.setGroundItemAmount(remainingAmount);
-                                finalTile.setGroundItemDurability(0); // WOOD không có độ bền
-
-                                // Đặt offset để gỗ nằm sát mép dưới của tile
-                                // offsetX: căn giữa theo chiều ngang
-                                finalTile.setGroundItemOffsetX((WorldConfig.TILE_SIZE - ItemSpriteConfig.ITEM_SPRITE_WIDTH) / 2.0);
-                                // offsetY: sát mép dưới của tile
-                                finalTile.setGroundItemOffsetY(WorldConfig.TILE_SIZE - ItemSpriteConfig.ITEM_SPRITE_HEIGHT);
-
-                                // Nếu phải đặt sang ô bên cạnh, thêm một chút scatter ngẫu nhiên nhỏ
-                                if (finalCol != treeCol || finalRow != treeRow) {
-                                    double scatter = GameLogicConfig.ITEM_DROP_SCATTER_RANGE;
-                                    double jitterX = (Math.random() - 0.5) * scatter;
-                                    // Chỉ scatter theo chiều ngang, giữ nguyên vị trí dọc (sát mép dưới)
-                                    finalTile.setGroundItemOffsetX(finalTile.getGroundItemOffsetX() + jitterX);
-                                }
-                            }
-
-                            worldMap.setTileData(finalCol, finalRow, finalTile);
-                            this.mapNeedsUpdate = true; // Báo map cần vẽ lại
-                        }
-
-                        // Animation và UI update
-                        if (addableAmount > 0) {
-                            mainGameView.playHarvestAnimation(harvestedItem, action.getCol(), action.getRow(), worldOffsetX, worldOffsetY);
-                        }
-                        mainGameView.updateHotbar();
-
-                        // Quest tracking: Chop trees (WOOD)
-                        if (questManager != null) {
-                            questManager.onEvent(QuestType.CHOP_TREE, ItemType.WOOD, 1); // Mỗi lần chặt cây = 1 tree
-                        }
-                    } else {
-                        // Xử lý các item khác (crops) - logic cũ
-                        // Thêm item vào inventory với số lượng và độ bền đúng
-                        mainPlayer.addItem(harvestedItem, totalAmount, durabilityToUse);
-
-                        // Truyền offset để View tính toán đúng vị trí trên màn hình
-                        mainGameView.playHarvestAnimation(action.getHarvestedItem(), action.getCol(), action.getRow(), worldOffsetX, worldOffsetY);
-                        mainGameView.updateHotbar(); // Update lại số lượng
-
-                        // [SỬA LẠI XP LOGIC] Chỉ cộng XP nếu là Crop hoặc Wood
-                        // Kiểm tra xem có phải là crop item không
-                        boolean isCropItem = false;
-                        for (CropType cropType : CropType.values()) {
-                            if (cropType.getHarvestItem() == harvestedItem) {
-                                isCropItem = true;
-                                break;
-                            }
-                        }
-
-                        // Chỉ cộng XP nếu là Crop hoặc Gỗ (chặt cây)
-                        if (isCropItem || harvestedItem == ItemType.WOOD) {
-                            mainPlayer.gainXP(GameLogicConfig.XP_GAIN_HARVEST);
-                        }
-
-                        // Quest tracking: Harvest crops
-                        if (questManager != null) {
-                            if (isCropItem) {
-                                questManager.onEvent(QuestType.HARVEST, harvestedItem, totalAmount);
-                            }
-                        }
-                    }
-                }
-
-                // [ĐÃ SỬA LOGIC LẶP] Reset trạng thái Player về IDLE sau khi hành động xong
-                // Logic cũ: Chỉ check HOE, WATER... -> Thiếu các state mới (PLANT, SHOVEL, FERTILIZE) nên bị lặp vô tận
-                // Logic mới: Check nếu KHÔNG PHẢI các state cơ bản (IDLE, WALK, DEAD) thì reset hết.
-                PlayerView.PlayerState currentState = mainPlayer.getState();
-                if (currentState != PlayerView.PlayerState.IDLE &&
-                        currentState != PlayerView.PlayerState.WALK &&
-                        currentState != PlayerView.PlayerState.DEAD) {
-
-                    // Grant XP based on action type before resetting state
-                    if (currentState == PlayerView.PlayerState.PLANT) {
-                        mainPlayer.gainXP(com.example.farmSimulation.config.GameLogicConfig.XP_GAIN_PLANT);
-                    } else if (currentState == PlayerView.PlayerState.WATER) {
-                        mainPlayer.gainXP(com.example.farmSimulation.config.GameLogicConfig.XP_GAIN_WATER);
-                    } else if (currentState == PlayerView.PlayerState.HOE) {
-                        mainPlayer.gainXP(com.example.farmSimulation.config.GameLogicConfig.XP_GAIN_HOE);
-                    } else if (currentState == PlayerView.PlayerState.AXE) {
-                        mainPlayer.gainXP(com.example.farmSimulation.config.GameLogicConfig.XP_GAIN_AXE);
-                    } else if (currentState == PlayerView.PlayerState.SHOVEL) {
-                        mainPlayer.gainXP(com.example.farmSimulation.config.GameLogicConfig.XP_GAIN_SHOVEL);
-                    }
-
-                    mainPlayer.setState(PlayerView.PlayerState.IDLE);
-                    playerView.setState(mainPlayer.getState(), mainPlayer.getDirection());
-                }
-
-                // Xóa hành động này khỏi hàng đợi
+                // Xóa hành động đã hoàn thành khỏi hàng đợi
                 iterator.remove();
             }
         }
 
-        // Update map nếu cần
+        // Cập nhật lại hiển thị bản đồ nếu có thay đổi về ô đất
         if (this.mapNeedsUpdate) {
             mainGameView.updateMap(worldOffsetX, worldOffsetY, true);
             this.mapNeedsUpdate = false;
+        }
+    }
+
+    /**
+     * Xử lý việc thay đổi dữ liệu của ô đất (TileData) trên bản đồ.
+     * Bao gồm cả logic cập nhật hình ảnh nối của hàng rào khi đặt hoặc phá.
+     */
+    private void processTileUpdates(TimedTileAction action, WorldMap worldMap) {
+        if (action.getNewTileData() != null) {
+            // Lưu lại trạng thái ô đất cũ để kiểm tra xem có phải người chơi vừa phá hàng rào hay không
+            TileData oldData = worldMap.getTileData(action.getCol(), action.getRow());
+            boolean wasFence = (oldData.getBaseTileType() == Tile.FENCE);
+
+            TileData newData = action.getNewTileData();
+            worldMap.setTileData(action.getCol(), action.getRow(), newData);
+            this.mapNeedsUpdate = true; // Đánh dấu để View vẽ lại bản đồ
+
+            // Trường hợp 1: Vừa đặt hàng rào mới (chuyển từ GRASS sang FENCE)
+            if (newData.getFenceData() != null && newData.getBaseTileType() == Tile.FENCE && fenceManager != null) {
+                fenceManager.updateFencePattern(action.getCol(), action.getRow());
+            }
+            // Trường hợp 2: Vừa phá bỏ hàng rào (chuyển từ FENCE sang loại khác)
+            // Cần cập nhật các ô lân cận để chúng ngắt kết nối hình ảnh với ô vừa bị phá
+            else if (wasFence && newData.getBaseTileType() != Tile.FENCE && fenceManager != null) {
+                fenceManager.updateFencePattern(action.getCol(), action.getRow());
+            }
+        }
+    }
+
+    /**
+     * Xử lý logic tiêu thụ vật phẩm (hạt giống, phân bón) hoặc trừ độ bền công cụ.
+     */
+    private void processItemConsumption(TimedTileAction action, MainGameView mainGameView) {
+        // Logic này chạy đồng bộ ngay khi thay đổi Map diễn ra
+        if (action.isConsumeItem()) {
+            // Gọi hàm tiêu thụ item tại vị trí slot đã lưu
+            // Hàm này tự động xử lý việc giảm số lượng (nếu xếp chồng) hoặc giảm độ bền
+            mainPlayer.consumeItemAtSlot(action.getItemSlotIndex(), 1);
+
+            // Cập nhật lại giao diện thanh công cụ (Hotbar) ngay lập tức
+            mainGameView.updateHotbar();
+        }
+    }
+
+    /**
+     * Xử lý tương tác với động vật. Ví dụ: khi nhặt vật phẩm do động vật tạo ra,
+     * cần xóa đối tượng động vật đó khỏi danh sách quản lý.
+     */
+    private void processAnimalInteraction(TimedTileAction action) {
+        if (action.getAnimalWorldX() != 0 || action.getAnimalWorldY() != 0) {
+            if (animalManager != null) {
+                Animal animalToRemove = animalManager.getAnimalAt(action.getAnimalWorldX(), action.getAnimalWorldY(), WorldConfig.TILE_SIZE);
+                if (animalToRemove != null) {
+                    animalManager.removeAnimal(animalToRemove);
+                }
+            }
+        }
+    }
+
+    /**
+     * Xử lý kết quả thu hoạch: tính toán số lượng nhận được, xử lý rơi vật phẩm xuống đất (nếu đầy túi),
+     * cập nhật nhiệm vụ và chạy hiệu ứng hình ảnh.
+     */
+    private void processHarvestResult(TimedTileAction action, WorldMap worldMap, MainGameView mainGameView, double worldOffsetX, double worldOffsetY) {
+        if (action.getHarvestedItem() != null && action.getHarvestedAmount() > 0) {
+            ItemType harvestedItem = action.getHarvestedItem();
+            int durabilityToUse = action.getHarvestedDurability();
+            int totalAmount = action.getHarvestedAmount();
+
+            // Nếu vật phẩm có độ bền nhưng chưa được lưu thông tin (lần đầu xuất hiện), sử dụng độ bền tối đa mặc định
+            if (durabilityToUse <= 0 && harvestedItem.hasDurability()) {
+                durabilityToUse = harvestedItem.getMaxDurability();
+            }
+
+            // Xử lý riêng cho GỖ (WOOD): Nếu túi đầy thì đặt gỗ rơi xuống đất
+            if (harvestedItem == ItemType.WOOD) {
+                handleWoodHarvest(action, worldMap, mainGameView, worldOffsetX, worldOffsetY, harvestedItem, totalAmount, durabilityToUse);
+            }
+            // Xử lý cho các loại nông sản khác (Crops): Logic thông thường
+            else {
+                handleCropHarvest(action, mainGameView, worldOffsetX, worldOffsetY, harvestedItem, totalAmount, durabilityToUse);
+            }
+        }
+    }
+
+    /**
+     * Logic chi tiết cho việc thu hoạch Gỗ (chặt cây).
+     * Bao gồm thuật toán tìm vị trí trống xung quanh để rơi gỗ nếu túi đồ đầy.
+     */
+    private void handleWoodHarvest(TimedTileAction action, WorldMap worldMap, MainGameView mainGameView, double worldOffsetX, double worldOffsetY, ItemType harvestedItem, int totalAmount, int durabilityToUse) {
+        // Tính toán số lượng có thể thêm vào túi đồ
+        int addableAmount = mainPlayer.calculateAddableAmount(harvestedItem, totalAmount);
+        int remainingAmount = totalAmount - addableAmount;
+
+        // Thêm phần có thể chứa vào túi đồ
+        if (addableAmount > 0) {
+            mainPlayer.addItem(harvestedItem, addableAmount, durabilityToUse);
+        }
+
+        // Nếu còn dư (do túi đầy), thực hiện logic rơi vật phẩm xuống đất
+        if (remainingAmount > 0) {
+            int treeCol = action.getCol();
+            int treeRow = action.getRow();
+
+            // Tìm vị trí trống xung quanh ô cây vừa chặt để đặt gỗ
+            int searchRadius = GameLogicConfig.ITEM_DROP_SEARCH_RADIUS;
+            int finalCol = -1;
+            int finalRow = -1;
+            boolean foundSpot = false;
+
+            // Ưu tiên 1: Kiểm tra chính ô cây vừa chặt (ô lý tưởng)
+            TileData idealTile = worldMap.getTileData(treeCol, treeRow);
+            if (idealTile.getGroundItem() == null) {
+                finalCol = treeCol;
+                finalRow = treeRow;
+                foundSpot = true;
+            } else if (idealTile.getGroundItem() == ItemType.WOOD) {
+                // Nếu đã có gỗ ở đó -> Cộng dồn số lượng
+                finalCol = treeCol;
+                finalRow = treeRow;
+                foundSpot = true;
+            } else {
+                // Ưu tiên 2: Quét các ô xung quanh theo bán kính
+                for (int r = treeRow - searchRadius; r <= treeRow + searchRadius; r++) {
+                    for (int c = treeCol - searchRadius; c <= treeCol + searchRadius; c++) {
+                        if (r == treeRow && c == treeCol) continue;
+
+                        TileData checkTile = worldMap.getTileData(c, r);
+                        if (checkTile.getGroundItem() == null) {
+                            finalCol = c;
+                            finalRow = r;
+                            foundSpot = true;
+                            break;
+                        } else if (checkTile.getGroundItem() == ItemType.WOOD) {
+                            // Trùng loại -> Cộng dồn
+                            finalCol = c;
+                            finalRow = r;
+                            foundSpot = true;
+                            break;
+                        }
+                    }
+                    if (foundSpot) break;
+                }
+            }
+
+            // Phương án dự phòng: Nếu vẫn không tìm thấy vị trí thích hợp, bắt buộc phải đặt đè lên vị trí gốc
+            if (!foundSpot) {
+                finalCol = treeCol;
+                finalRow = treeRow;
+            }
+
+            // Thực hiện đặt gỗ vào ô đã chọn trên bản đồ
+            TileData finalTile = worldMap.getTileData(finalCol, finalRow);
+
+            if (finalTile.getGroundItem() == ItemType.WOOD) {
+                // Cộng dồn số lượng nếu đã có gỗ
+                finalTile.setGroundItemAmount(finalTile.getGroundItemAmount() + remainingAmount);
+            } else {
+                // Đặt mới hoặc đè lên item cũ
+                finalTile.setGroundItem(ItemType.WOOD);
+                finalTile.setGroundItemAmount(remainingAmount);
+                finalTile.setGroundItemDurability(0); // Gỗ nguyên liệu không có thanh độ bền
+
+                // Căn chỉnh vị trí hiển thị của item nằm sát mép dưới ô đất
+                finalTile.setGroundItemOffsetX((WorldConfig.TILE_SIZE - ItemSpriteConfig.ITEM_SPRITE_WIDTH) / 2.0); // Căn giữa ngang
+                finalTile.setGroundItemOffsetY(WorldConfig.TILE_SIZE - ItemSpriteConfig.ITEM_SPRITE_HEIGHT);      // Sát mép dưới
+
+                // Nếu item rơi sang ô bên cạnh (không phải ô gốc), thêm chút lệch ngẫu nhiên cho tự nhiên
+                if (finalCol != treeCol || finalRow != treeRow) {
+                    double scatter = GameLogicConfig.ITEM_DROP_SCATTER_RANGE;
+                    double jitterX = (Math.random() - 0.5) * scatter;
+                    // Chỉ lệch theo chiều ngang, giữ nguyên chiều dọc
+                    finalTile.setGroundItemOffsetX(finalTile.getGroundItemOffsetX() + jitterX);
+                }
+            }
+
+            worldMap.setTileData(finalCol, finalRow, finalTile);
+            this.mapNeedsUpdate = true; // Báo hệ thống cần vẽ lại bản đồ
+        }
+
+        // Chạy hiệu ứng bay vật phẩm và cập nhật UI
+        if (addableAmount > 0) {
+            mainGameView.playHarvestAnimation(harvestedItem, action.getCol(), action.getRow(), worldOffsetX, worldOffsetY);
+        }
+        mainGameView.updateHotbar();
+
+        // Cập nhật tiến độ nhiệm vụ: Chặt cây
+        if (questManager != null) {
+            questManager.onEvent(QuestType.CHOP_TREE, ItemType.WOOD, 1); // Tính là chặt 1 cây
+        }
+    }
+
+    /**
+     * Logic thu hoạch nông sản thông thường.
+     */
+    private void handleCropHarvest(TimedTileAction action, MainGameView mainGameView, double worldOffsetX, double worldOffsetY, ItemType harvestedItem, int totalAmount, int durabilityToUse) {
+        // Thêm item vào túi đồ với số lượng và độ bền chính xác
+        mainPlayer.addItem(harvestedItem, totalAmount, durabilityToUse);
+
+        // Truyền tọa độ offset để View tính toán đúng vị trí hiển thị trên màn hình
+        mainGameView.playHarvestAnimation(action.getHarvestedItem(), action.getCol(), action.getRow(), worldOffsetX, worldOffsetY);
+        mainGameView.updateHotbar();
+
+        // Kiểm tra xem vật phẩm thu hoạch có phải là nông sản (Crop) hay không để cộng điểm kinh nghiệm
+        boolean isCropItem = false;
+        for (CropType cropType : CropType.values()) {
+            if (cropType.getHarvestItem() == harvestedItem) {
+                isCropItem = true;
+                break;
+            }
+        }
+
+        // Chỉ cộng XP nếu là Nông sản hoặc Gỗ (đã xử lý ở trên, nhưng kiểm tra lại cho chắc chắn logic chung)
+        if (isCropItem || harvestedItem == ItemType.WOOD) {
+            mainPlayer.gainXP(GameLogicConfig.XP_GAIN_HARVEST);
+        }
+
+        // Cập nhật tiến độ nhiệm vụ: Thu hoạch nông sản
+        if (questManager != null) {
+            if (isCropItem) {
+                questManager.onEvent(QuestType.HARVEST, harvestedItem, totalAmount);
+            }
+        }
+    }
+
+    /**
+     * Đặt lại trạng thái của người chơi về đứng yên (IDLE) sau khi hành động kết thúc
+     * để tránh lặp lại hành động vô tận. Đồng thời cộng điểm kinh nghiệm tương ứng với hành động.
+     */
+    private void resetPlayerStateAndGrantXP(TimedTileAction action) {
+        PlayerView.PlayerState currentState = mainPlayer.getState();
+
+        // Chỉ reset nếu trạng thái hiện tại KHÔNG phải là các trạng thái cơ bản (Đứng yên, Đi bộ, Chết)
+        if (currentState != PlayerView.PlayerState.IDLE &&
+                currentState != PlayerView.PlayerState.WALK &&
+                currentState != PlayerView.PlayerState.DEAD) {
+
+            // Cộng điểm kinh nghiệm dựa trên loại hành động trước khi reset trạng thái
+            if (currentState == PlayerView.PlayerState.PLANT) {
+                mainPlayer.gainXP(GameLogicConfig.XP_GAIN_PLANT);
+            } else if (currentState == PlayerView.PlayerState.WATER) {
+                mainPlayer.gainXP(GameLogicConfig.XP_GAIN_WATER);
+            } else if (currentState == PlayerView.PlayerState.HOE) {
+                mainPlayer.gainXP(GameLogicConfig.XP_GAIN_HOE);
+            } else if (currentState == PlayerView.PlayerState.AXE) {
+                mainPlayer.gainXP(GameLogicConfig.XP_GAIN_AXE);
+            } else if (currentState == PlayerView.PlayerState.SHOVEL) {
+                mainPlayer.gainXP(GameLogicConfig.XP_GAIN_SHOVEL);
+            }
+
+            // Chuyển về trạng thái đứng yên
+            mainPlayer.setState(PlayerView.PlayerState.IDLE);
+            playerView.setState(mainPlayer.getState(), mainPlayer.getDirection());
         }
     }
 }

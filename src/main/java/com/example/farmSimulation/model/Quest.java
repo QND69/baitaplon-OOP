@@ -13,8 +13,6 @@ public class Quest {
     private QuestType type; // Loại quest
     private ItemType targetItem; // Item mục tiêu (nullable, có thể null cho một số quest)
     private int targetAmount; // Số lượng mục tiêu
-
-    // [SỬA] Đổi tên từ currentProgress thành currentAmount để khớp với GameManager và GameSaveState
     private int currentAmount; // Tiến độ hiện tại
 
     private double rewardMoney; // Tiền thưởng
@@ -35,7 +33,7 @@ public class Quest {
         this.type = type;
         this.targetItem = targetItem;
         this.targetAmount = targetAmount;
-        this.currentAmount = 0; // [SỬA] Khởi tạo currentAmount
+        this.currentAmount = 0; // Khởi tạo currentAmount
         this.rewardMoney = rewardMoney;
         this.rewardXp = rewardXp;
         this.isClaimed = false;
@@ -46,7 +44,7 @@ public class Quest {
      * @param amount Số lượng tăng
      */
     public void incrementProgress(int amount) {
-        // [SỬA] Sử dụng currentAmount
+        // Sử dụng currentAmount
         this.currentAmount = Math.min(this.currentAmount + amount, this.targetAmount);
     }
 
@@ -55,7 +53,7 @@ public class Quest {
      * @return true nếu đã hoàn thành
      */
     public boolean isCompleted() {
-        // [SỬA] Sử dụng currentAmount
+        // Sử dụng currentAmount
         return this.currentAmount >= this.targetAmount;
     }
 
@@ -65,7 +63,7 @@ public class Quest {
      */
     public double getProgressPercent() {
         if (targetAmount == 0) return 1.0;
-        // [SỬA] Sử dụng currentAmount
+        // Sử dụng currentAmount
         return Math.min(1.0, (double) currentAmount / targetAmount);
     }
 }

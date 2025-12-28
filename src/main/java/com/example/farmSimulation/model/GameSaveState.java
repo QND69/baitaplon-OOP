@@ -5,44 +5,45 @@ import java.io.Serializable;
 import java.util.List;
 import java.util.ArrayList;
 
-// Class này dùng để "đóng gói" dữ liệu game để lưu xuống file
-// implement Serializable là bắt buộc để Java biết class này có thể lưu được
+// Lớp này dùng để đóng gói toàn bộ dữ liệu game nhằm phục vụ việc lưu trữ xuống file.
+// Việc hiện thực giao diện Serializable là bắt buộc để Java có thể tuần tự hóa đối tượng này.
 public class GameSaveState implements Serializable {
     private static final long serialVersionUID = 1L;
 
-    // 1. Dữ liệu Player
-    public String playerName; // Lưu tên người chơi
+    // 1. Dữ liệu Người chơi
+    public String playerName; // Tên người chơi
     public double playerMoney;
     public double playerXP;
     public int playerLevel;
     public double playerStamina;
     public double playerX;
     public double playerY;
-    // Lưu inventory dưới dạng mảng đơn giản (ItemType và số lượng)
+    // Danh sách vật phẩm trong kho, được lưu trữ đơn giản gồm loại và số lượng
     public List<SavedItemStack> inventory = new ArrayList<>();
 
     // 2. Dữ liệu Thời gian
-    public double currentDaySeconds; // Lưu giây hiện tại trong ngày
-    // currentDay có thể tính từ total seconds hoặc lưu riêng, ở đây ta lưu riêng cho chắc
+    public double currentDaySeconds; // Thời điểm hiện tại trong ngày tính bằng giây
+    // Ngày hiện tại trong game, được lưu riêng biến này để đảm bảo dữ liệu nhất quán
     public int currentDay;
 
-    // 3. Dữ liệu Động vật (Vị trí, loại, tuổi, đói...)
+    // 3. Dữ liệu Động vật bao gồm vị trí, chủng loại, tuổi và chỉ số đói
     public List<SavedAnimal> animals = new ArrayList<>();
 
-    // 4. Dữ liệu Thế giới (Thay thế SavedCrop bằng SavedTileData bao quát hơn)
-    // Lưu danh sách các ô đất có sự thay đổi (không lưu ô GRASS mặc định để nhẹ file)
+    // 4. Dữ liệu Thế giới
+    // Chỉ lưu danh sách các ô đất có sự thay đổi so với mặc định để tối ưu dung lượng file
     public List<SavedTileData> worldTiles = new ArrayList<>();
 
     // 5. Dữ liệu Thời tiết
     public WeatherConfig.WeatherType currentWeather;
 
-    // 6. Dữ liệu Shop (Vật phẩm bán trong ngày)
+    // 6. Dữ liệu Cửa hàng bao gồm các vật phẩm bán trong ngày
     public List<SavedShopSlot> dailyShopStock = new ArrayList<>();
 
-    // 7. Dữ liệu Quest (Nhiệm vụ hàng ngày)
+    // 7. Dữ liệu Nhiệm vụ đang thực hiện
     public List<SavedQuest> activeQuests = new ArrayList<>();
 
-    // --- Các class con (Helper) để lưu chi tiết ---
+    // Các lớp hỗ trợ bên dưới dùng để lưu trữ chi tiết cấu trúc dữ liệu của từng đối tượng
+
     public static class SavedItemStack implements Serializable {
         public ItemType type;
         public int quantity;
@@ -66,32 +67,32 @@ public class GameSaveState implements Serializable {
         }
     }
 
-    // Class lưu toàn bộ thông tin của một ô đất (Cây, Rào, Đất, Item...)
+    // Lớp lưu trữ toàn bộ thông tin chi tiết của một ô đất bao gồm cây trồng, hàng rào, trạng thái đất và vật phẩm rơi
     public static class SavedTileData implements Serializable {
         public int col, row;
-        public Tile baseType; // GRASS, SOIL, SOIL_WET
+        public Tile baseType; // Loại nền đất cơ bản như cỏ, đất thường, đất ướt
 
-        // Trạng thái đất
+        // Trạng thái của đất
         public boolean isWatered;
         public boolean isFertilized;
         public long lastWateredTime;
         public long fertilizerStartTime;
 
-        // Cây trồng (Crop)
+        // Dữ liệu về cây trồng nông nghiệp
         public boolean hasCrop;
         public CropType cropType;
         public int cropStage;
 
-        // Cây tự nhiên (Tree)
+        // Dữ liệu về cây tự nhiên
         public boolean hasTree;
         public int treeStage;
         public int treeChopCount;
 
-        // Hàng rào (Fence)
+        // Dữ liệu về hàng rào
         public boolean hasFence;
         public boolean fenceIsOpen;
 
-        // Item trên đất (Ground Item)
+        // Dữ liệu về vật phẩm nằm trên mặt đất
         public boolean hasGroundItem;
         public ItemType groundItemType;
         public int groundItemAmount;
@@ -102,7 +103,7 @@ public class GameSaveState implements Serializable {
         public SavedTileData() {}
     }
 
-    // Class lưu thông tin một slot trong shop
+    // Lớp lưu trữ thông tin về một vật phẩm được bán trong cửa hàng
     public static class SavedShopSlot implements Serializable {
         public ItemType itemType;
         public int quantity;
@@ -115,7 +116,7 @@ public class GameSaveState implements Serializable {
         }
     }
 
-    // Class lưu thông tin nhiệm vụ
+    // Lớp lưu trữ thông tin chi tiết về nhiệm vụ
     public static class SavedQuest implements Serializable {
         public String description;
         public QuestType type;

@@ -8,7 +8,7 @@ public enum ItemType {
     // Giá mua: 200-500, không bán được (sellPrice = 0)
     HOE("Hoe", 1, false, GameLogicConfig.MAX_DURABILITY_HOE, 200, 0, 0.0),
     WATERING_CAN("Watering Can", 1, false, GameLogicConfig.MAX_WATER_CAPACITY, 250, 0, 0.0),
-    PICKAXE("Pickaxe", 1, false, GameLogicConfig.MAX_DURABILITY_PICKAXE, 300, 0, 0.0),
+    PICKAXE("Pickaxe", 1, false, GameLogicConfig.MAX_DURABILITY_PICKAXE, 0, 0, 0.0),
     SHOVEL("Shovel", 1, false, GameLogicConfig.MAX_DURABILITY_SHOVEL, 250, 0, 0.0),
     AXE("Axe", 1, false, GameLogicConfig.MAX_DURABILITY_AXE, 300, 0, 0.0),
     SWORD("Sword", 1, false, GameLogicConfig.MAX_DURABILITY_SWORD, 400, 0, 0.0),

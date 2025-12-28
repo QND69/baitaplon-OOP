@@ -32,114 +32,121 @@ import lombok.Setter;
 @Getter
 @Setter
 public class MainGameView {
-    private final ImageManager assetManager; // Để lấy textures
-    private final WorldMap worldMap;         // Để biết vẽ tile gì
+
+    // ==============================================================================================
+    // KHAI BÁO BIẾN VÀ CÁC THÀNH PHẦN GIAO DIỆN
+    // ==============================================================================================
+
+    // Các thành phần phụ thuộc cốt lõi
+    private final ImageManager assetManager; // Quản lý tài nguyên hình ảnh
+    private final WorldMap worldMap;         // Dữ liệu bản đồ để vẽ các ô gạch
     private GameManager gameManager;
 
-    private Pane rootPane;    // Root pane
+    // Pane gốc chứa toàn bộ giao diện
+    private Pane rootPane;
 
     // Các thành phần View con
     private WorldRenderer worldRenderer;
     private HudView hudView;
     private SettingsMenuView settingsMenu;
     private HotbarView hotbarView;
-    private ShopView shopView; // Giao diện shop
-    private QuestBoardView questBoardView; // Giao diện quest board
+    private ShopView shopView;             // Giao diện cửa hàng
+    private QuestBoardView questBoardView; // Giao diện bảng nhiệm vụ
 
-    // Pane tĩnh chứa các thực thể động (Animals)
+    // Pane tĩnh chứa các thực thể động vật
     private Pane entityPane;
 
-    // Pane hiệu ứng thời tiết (mưa)
+    // Pane hiệu ứng thời tiết
     private WeatherEffectView weatherEffectView;
 
-    // [MỚI] Manager quản lý hiệu ứng
+    // Trình quản lý hiệu ứng hình ảnh
     private final VisualEffectManager visualEffectManager;
 
-    // Game Over UI Overlay
-    private javafx.scene.layout.StackPane gameOverOverlay;
+    // Lớp phủ giao diện khi trò chơi kết thúc
+    private StackPane gameOverOverlay;
+
+    // ==============================================================================================
+    // KHỞI TẠO VÀ THIẾT LẬP (INITIALIZATION)
+    // ==============================================================================================
 
     /**
-     * Constructor (Hàm khởi tạo) nhận các thành phần nó cần
-     * (Dependency Injection)
+     * Hàm khởi tạo nhận các thành phần phụ thuộc cần thiết
      */
     public MainGameView(ImageManager assetManager, WorldMap worldMap, HotbarView hotbarView) {
         this.assetManager = assetManager;
         this.worldMap = worldMap;
         this.hotbarView = hotbarView;
-        this.visualEffectManager = new VisualEffectManager(); // Khởi tạo
+        this.visualEffectManager = new VisualEffectManager();
     }
+
     /**
-     * initUI nhận Controller và PlayerSprite từ bên ngoài (từ class Game)
+     * Khởi tạo giao diện người dùng, nhận Controller và Sprite người chơi từ bên ngoài.
+     * Thiết lập các lớp hiển thị (layer) và vị trí ban đầu.
      */
     public void initUI(Stage primaryStage, GameController gameController, Pane playerSpriteContainer,
                        Rectangle debugBox, Circle debugDot, Circle debugRangeCircle, Rectangle debugCollisionHitbox) {
         this.rootPane = new Pane();
 
-        // Khởi tạo entityPane (pane tĩnh chứa động vật)
+        // Khởi tạo pane tĩnh chứa động vật
         this.entityPane = new Pane();
         this.entityPane.setPrefSize(WindowConfig.SCREEN_WIDTH, WindowConfig.SCREEN_HEIGHT);
-        this.entityPane.setMouseTransparent(true); // Không chặn click chuột xuống đất
+        this.entityPane.setMouseTransparent(true); // Cho phép chuột click xuyên qua xuống đất
 
         // Khởi tạo các View con
         this.worldRenderer = new WorldRenderer(assetManager, worldMap, entityPane);
         this.hudView = new HudView();
-        // HudView sẽ được set gameManager và mainGameView sau (trong setGameManager)
-        // ⚠️ Phải khởi tạo SettingsMenu SAU KHI gameManager đã được set
-        // Hoặc truyền gameManager vào sau
-        // Chúng ta sẽ truyền gameManager vào đây:
+
+        // SettingsMenu cần được khởi tạo. Chúng ta truyền gameManager vào đây.
+        // Lưu ý: HudView sẽ được thiết lập gameManager sau.
         this.settingsMenu = new SettingsMenuView(this.gameManager);
 
-        // [MỚI] Khởi tạo weatherEffectView (hiệu ứng mưa)
+        // Khởi tạo hiệu ứng thời tiết
         this.weatherEffectView = new WeatherEffectView();
 
-        // Create Game Over UI Overlay
+        // Tạo giao diện Game Over
         createGameOverOverlay();
 
-        // Thêm các thành phần vào rootPane theo đúng thứ tự (lớp)
+        // Thêm các thành phần vào rootPane theo thứ tự lớp hiển thị từ dưới lên trên
         rootPane.getChildren().addAll(
-                worldRenderer.getWorldPane(),   // Lớp 1: Bản đồ (Đất/Cây)
-                worldRenderer.getTileSelector(),// Lớp 2: Ô chọn
-                worldRenderer.getGhostPlacement(), // Bóng mờ nằm ở đây (Layer tĩnh)
-                entityPane,                     // Lớp 3: Động vật (Animals)
-                playerSpriteContainer,          // Lớp 4: "Khung" Player
-                weatherEffectView,              // Lớp 4.5: Hiệu ứng thời tiết (mưa)
-                hudView,                        // Lớp 5: HUD (Timer, Text, Darkness)
-                hotbarView,                     // Lớp 6: Hotbar
-                settingsMenu,                   // Lớp 7: Menu (hiện đang ẩn)
-                gameOverOverlay                 // Lớp 8: Game Over Overlay (hiện đang ẩn)
+                worldRenderer.getWorldPane(),    // Lớp 1: Bản đồ (Đất/Cây)
+                worldRenderer.getTileSelector(), // Lớp 2: Ô chọn
+                worldRenderer.getGhostPlacement(), // Bóng mờ hiển thị vị trí đặt vật phẩm
+                entityPane,                      // Lớp 3: Động vật
+                playerSpriteContainer,           // Lớp 4: Khung chứa nhân vật
+                weatherEffectView,               // Lớp 4.5: Hiệu ứng thời tiết (mưa)
+                hudView,                         // Lớp 5: HUD (Đồng hồ, Text, độ tối)
+                hotbarView,                      // Lớp 6: Thanh công cụ
+                settingsMenu,                    // Lớp 7: Menu cài đặt (mặc định ẩn)
+                gameOverOverlay                  // Lớp 8: Giao diện kết thúc game (mặc định ẩn)
         );
 
-        // [MỚI] ShopView sẽ được thêm sau khi gameManager được set (trong setGameManager)
-
-        // Đặt nhân vật (nhận từ bên ngoài) vào giữa màn hình
-        // [SỬA] Tính toán vị trí dựa trên kích thước SAU KHI SCALE để căn giữa chuẩn hơn
+        // Đặt nhân vật vào giữa màn hình
+        // Tính toán vị trí dựa trên kích thước sau khi đã phóng to/thu nhỏ để căn giữa chính xác hơn
         double scaledWidth = PlayerSpriteConfig.BASE_PLAYER_FRAME_WIDTH * PlayerSpriteConfig.BASE_PLAYER_FRAME_SCALE;
         double scaledHeight = PlayerSpriteConfig.BASE_PLAYER_FRAME_HEIGHT * PlayerSpriteConfig.BASE_PLAYER_FRAME_SCALE;
         playerSpriteContainer.setLayoutX(WindowConfig.SCREEN_WIDTH / 2 - scaledWidth / 2);
         playerSpriteContainer.setLayoutY(WindowConfig.SCREEN_HEIGHT / 2 - scaledHeight / 2);
 
-        // --- Ghim (bind) vị trí của debug nodes (CHỈ KHI DEBUG BẬT) ---
-        // (Nếu debug=false, các node này sẽ là NULL)
+        // Thiết lập hiển thị gỡ lỗi (Debug) nếu được kích hoạt trong cấu hình
         if (PlayerSpriteConfig.DEBUG_PLAYER_BOUNDS) {
-            // Thêm vào rootPane (ở lớp trên cùng) - Bỏ debugBox (hình vuông đỏ)
+            // Thêm các nút debug vào rootPane (lớp trên cùng)
             rootPane.getChildren().addAll(debugDot, debugRangeCircle, debugCollisionHitbox);
 
-            // Ghim tâm chấm vào "Tâm Logic" (đã scale)
+            // Gắn tâm chấm debug vào tâm logic của nhân vật
             double logicCenterX = scaledWidth / 2;
 
-            // [SỬA] Cộng thêm INTERACTION_CENTER_Y_OFFSET để hiển thị tâm debug đúng vị trí mới
+            // Cộng thêm offset Y để hiển thị tâm debug đúng vị trí tương tác
             double logicCenterY = (scaledHeight / 2) + PlayerSpriteConfig.INTERACTION_CENTER_Y_OFFSET;
 
             debugDot.layoutXProperty().bind(playerSpriteContainer.layoutXProperty().add(logicCenterX));
             debugDot.layoutYProperty().bind(playerSpriteContainer.layoutYProperty().add(logicCenterY));
 
-            // Ghim Vòng tròn Range
+            // Gắn vòng tròn phạm vi tương tác
             debugRangeCircle.layoutXProperty().bind(playerSpriteContainer.layoutXProperty().add(logicCenterX));
             debugRangeCircle.layoutYProperty().bind(playerSpriteContainer.layoutYProperty().add(logicCenterY));
 
-            // Collision hitbox sẽ được cập nhật động trong updateCollisionHitbox()
+            // Vùng va chạm sẽ được cập nhật động trong phương thức updateCollisionHitbox
         }
-        // --- Hết phần Debug ---
 
         Scene scene = new Scene(rootPane, WindowConfig.SCREEN_WIDTH, WindowConfig.SCREEN_HEIGHT, WindowConfig.BACKGROUND_COLOR);
         gameController.setupInputListeners(scene);
@@ -150,91 +157,91 @@ public class MainGameView {
         primaryStage.show();
     }
 
-    // --- CÁC HÀM ĐIỀU PHỐI (DELEGATE) ---
-    // (Chỉ gọi lệnh cho các View con)
+    /**
+     * Thiết lập GameManager và khởi tạo các thành phần phụ thuộc vào nó (Shop, Quest, Listener).
+     * Phương thức này được gọi từ Game.java sau khi khởi tạo xong GameManager.
+     */
+    public void setGameManager(GameManager gameManager) {
+        this.gameManager = gameManager;
 
-    // Hàm cập nhật map
+        // Thiết lập tham chiếu cho HudView
+        if (hudView != null) {
+            hudView.setGameManager(gameManager);
+            hudView.setMainGameView(this);
+            hudView.setAssetManager(assetManager);
+        }
+
+        // Thiết lập sự kiện thả vật phẩm từ Hotbar (để xóa vật phẩm vào thùng rác)
+        if (hotbarView != null) {
+            hotbarView.setOnItemDropListener((slotIndex, scenePoint) -> {
+                // Kiểm tra xem có thả vào thùng rác không
+                if (hudView != null && hudView.isMouseOverTrash(scenePoint.getX(), scenePoint.getY())) {
+                    // Xóa toàn bộ stack vật phẩm tại slot này
+                    if (gameManager != null && gameManager.getMainPlayer() != null) {
+                        ItemStack[] items = gameManager.getMainPlayer().getHotbarItems();
+                        if (slotIndex >= 0 && slotIndex < items.length && items[slotIndex] != null) {
+                            items[slotIndex] = null; // Xóa khỏi túi đồ
+                            updateHotbar(); // Cập nhật lại hiển thị
+                            return true; // Xác nhận vật phẩm đã bị xóa
+                        }
+                    }
+                }
+                return false; // Không thả vào thùng rác
+            });
+        }
+
+        // Thiết lập GameManager cho SettingsMenuView để các chức năng Resume và Brightness hoạt động đúng
+        if (settingsMenu != null) {
+            settingsMenu.setGameManager(gameManager);
+        }
+
+        // Khởi tạo ShopView sau khi đã có GameManager
+        if (gameManager != null && gameManager.getShopManager() != null) {
+            this.shopView = new ShopView(gameManager.getShopManager(), assetManager);
+            // Đặt kích thước cố định để đảm bảo giao diện cửa hàng không bị co lại
+            shopView.setPrefSize(com.example.farmSimulation.config.ShopConfig.SHOP_WIDTH, com.example.farmSimulation.config.ShopConfig.SHOP_HEIGHT);
+            shopView.setMaxSize(com.example.farmSimulation.config.ShopConfig.SHOP_WIDTH, com.example.farmSimulation.config.ShopConfig.SHOP_HEIGHT);
+            // Căn giữa cửa hàng trên màn hình
+            shopView.setLayoutX((WindowConfig.SCREEN_WIDTH - com.example.farmSimulation.config.ShopConfig.SHOP_WIDTH) / 2);
+            shopView.setLayoutY((WindowConfig.SCREEN_HEIGHT - com.example.farmSimulation.config.ShopConfig.SHOP_HEIGHT) / 2);
+            // Thêm shopView vào rootPane và đưa lên lớp trên cùng
+            rootPane.getChildren().add(shopView);
+            shopView.toFront();
+        }
+
+        // Khởi tạo QuestBoardView sau khi đã có GameManager
+        if (gameManager != null && gameManager.getQuestManager() != null && gameManager.getMainPlayer() != null) {
+            this.questBoardView = new QuestBoardView(gameManager.getQuestManager(), gameManager.getMainPlayer());
+            // Căn giữa bảng nhiệm vụ trên màn hình
+            questBoardView.setLayoutX((WindowConfig.SCREEN_WIDTH - com.example.farmSimulation.config.QuestConfig.QUEST_BOARD_WIDTH) / 2);
+            questBoardView.setLayoutY((WindowConfig.SCREEN_HEIGHT - com.example.farmSimulation.config.QuestConfig.QUEST_BOARD_HEIGHT) / 2);
+            // Thêm questBoardView vào rootPane và đưa lên lớp trên cùng
+            rootPane.getChildren().add(questBoardView);
+            questBoardView.toFront();
+        }
+    }
+
+    // ==============================================================================================
+    // CÁC HÀM CẬP NHẬT HIỂN THỊ CHÍNH (CORE RENDER & UPDATES)
+    // ==============================================================================================
+
+    /**
+     * Cập nhật vị trí hiển thị của bản đồ
+     */
     public void updateMap(double worldOffsetX, double worldOffsetY, boolean forceRedraw) {
         worldRenderer.updateMap(worldOffsetX, worldOffsetY, forceRedraw);
     }
 
-    // Hàm cập nhật ô được chọn
+    /**
+     * Cập nhật vị trí ô được chọn trên bản đồ
+     */
     public void updateSelector(int tileSelectedX, int tileSelectedY, double worldOffsetX, double worldOffsetY) {
         worldRenderer.updateSelector(tileSelectedX, tileSelectedY, worldOffsetX, worldOffsetY);
     }
 
-    // Hàm cập nhật ghost placement
-    public void updateCollisionHitbox(double playerWorldX, double playerWorldY, double worldOffsetX, double worldOffsetY, javafx.scene.shape.Rectangle debugCollisionHitbox) {
-        if (debugCollisionHitbox != null && PlayerSpriteConfig.DEBUG_PLAYER_BOUNDS) {
-            // 1. Cập nhật kích thước hitbox theo Config mới
-            if (debugCollisionHitbox.getWidth() != PlayerSpriteConfig.COLLISION_BOX_WIDTH) {
-                debugCollisionHitbox.setWidth(PlayerSpriteConfig.COLLISION_BOX_WIDTH);
-                debugCollisionHitbox.setHeight(PlayerSpriteConfig.COLLISION_BOX_HEIGHT);
-            }
-
-            // 2. Tính toán vị trí trên màn hình
-            double screenX = playerWorldX + worldOffsetX;
-            double screenY = playerWorldY + worldOffsetY;
-
-            // 3. Căn chỉnh (ĐÃ SỬA LẠI CÔNG THỨC):
-            // Player gốc rộng 192x192, nhưng đã Scale 0.6
-            // => Kích thước thực tế hiển thị = 192 * 0.6 = 115.2
-
-            double scaledPlayerWidth = PlayerSpriteConfig.BASE_PLAYER_FRAME_WIDTH * PlayerSpriteConfig.BASE_PLAYER_FRAME_SCALE;
-            double scaledPlayerHeight = PlayerSpriteConfig.BASE_PLAYER_FRAME_HEIGHT * PlayerSpriteConfig.BASE_PLAYER_FRAME_SCALE;
-
-            // Offset X: Căn giữa hitbox theo chiều ngang của nhân vật đã scale
-            double offsetX = (scaledPlayerWidth - PlayerSpriteConfig.COLLISION_BOX_WIDTH) / 2;
-
-            // Offset Y: Căn xuống dưới chân (chân nằm ở cuối ảnh đã scale)
-            // Logic: (Chiều cao đã scale) - (Cao hitbox) - (Padding đáy)
-            double offsetY = scaledPlayerHeight
-                    - PlayerSpriteConfig.COLLISION_BOX_HEIGHT
-                    - PlayerSpriteConfig.COLLISION_BOX_BOTTOM_PADDING;
-
-            debugCollisionHitbox.setLayoutX(screenX + offsetX);
-            debugCollisionHitbox.setLayoutY(screenY + offsetY);
-
-            debugCollisionHitbox.setVisible(true);
-        } else if (debugCollisionHitbox != null) {
-            debugCollisionHitbox.setVisible(false);
-        }
-    }
-
-    // Hàm cập nhật text trên đầu nhân vật
-    public void showTemporaryText(String message, double playerScreenX, double playerScreenY) {
-        // Căn lề text dựa trên Base Width (đã scale)
-        double scaledWidth = PlayerSpriteConfig.BASE_PLAYER_FRAME_WIDTH * PlayerSpriteConfig.BASE_PLAYER_FRAME_SCALE;
-        double playerCenterX = playerScreenX + scaledWidth / 2;
-        hudView.showTemporaryText(message, playerCenterX, playerScreenY);
-    }
-    // Hàm hiện setting
-    public void showSettingsMenu(String playerName, int playerLevel) {
-        settingsMenu.updatePlayerInfo(playerName, playerLevel);
-        settingsMenu.show();
-    }
-
-    // Hàm ẩn setting
-    public void hideSettingsMenu() {
-        settingsMenu.hide();
-    }
-
-    // Hàm cập nhật thời gian
-    public void updateTimer(int day, String timeString) {
-        hudView.updateTimer(day, timeString);
-    }
-
-    // Hàm cập nhật ánh sáng
-    public void updateLighting(double intensity) {
-        hudView.updateLighting(intensity);
-    }
-
-    // Hàm cập nhật hotbar
-    public void updateHotbar() {
-        hotbarView.updateView();
-    }
-
-    // Hàm cập nhật bóng mờ (Ghost Placement) - Ủy quyền cho WorldRenderer xử lý
+    /**
+     * Cập nhật hiển thị bóng mờ của vật phẩm khi chuẩn bị đặt
+     */
     public void updateGhostPlacement(int tileX, int tileY, double worldOffsetX, double worldOffsetY, ItemStack currentItem) {
         if (worldRenderer != null) {
             worldRenderer.updateGhostPlacement(tileX, tileY, worldOffsetX, worldOffsetY, currentItem);
@@ -242,7 +249,7 @@ public class MainGameView {
     }
 
     /**
-     * Cập nhật vẽ động vật
+     * Cập nhật hiển thị danh sách động vật
      */
     public void updateAnimals(java.util.List<com.example.farmSimulation.model.Animal> animals, double worldOffsetX, double worldOffsetY) {
         if (worldRenderer != null) {
@@ -250,18 +257,86 @@ public class MainGameView {
         }
     }
 
-    // Hàm hiển thị animation thu hoạch bay về túi
+    /**
+     * Cập nhật thông tin thời gian hiển thị
+     */
+    public void updateTimer(int day, String timeString) {
+        hudView.updateTimer(day, timeString);
+    }
+
+    /**
+     * Cập nhật mức độ ánh sáng (chu kỳ ngày đêm)
+     */
+    public void updateLighting(double intensity) {
+        hudView.updateLighting(intensity);
+    }
+
+    /**
+     * Cập nhật hiển thị thanh công cụ (Hotbar)
+     */
+    public void updateHotbar() {
+        hotbarView.updateView();
+    }
+
+    /**
+     * Cập nhật số tiền hiển thị của người chơi
+     */
+    public void updateMoneyDisplay(double amount) {
+        if (hudView != null) {
+            hudView.updateMoney(amount);
+        }
+    }
+
+    /**
+     * Hiển thị thông báo tạm thời trên đầu nhân vật
+     */
+    public void showTemporaryText(String message, double playerScreenX, double playerScreenY) {
+        // Căn lề văn bản dựa trên chiều rộng cơ sở đã được điều chỉnh tỷ lệ
+        double scaledWidth = PlayerSpriteConfig.BASE_PLAYER_FRAME_WIDTH * PlayerSpriteConfig.BASE_PLAYER_FRAME_SCALE;
+        double playerCenterX = playerScreenX + scaledWidth / 2;
+        hudView.showTemporaryText(message, playerCenterX, playerScreenY);
+    }
+
+    // ==============================================================================================
+    // QUẢN LÝ HIỆU ỨNG HÌNH ẢNH (VISUAL EFFECTS)
+    // ==============================================================================================
+
+    /**
+     * Cập nhật hiệu ứng thời tiết và ánh sáng liên quan
+     */
+    public void updateWeather(boolean isRaining) {
+        if (weatherEffectView != null) {
+            // Chỉ đặt trạng thái mưa khi có thay đổi
+            weatherEffectView.setRaining(isRaining);
+
+            // Cập nhật hoạt ảnh mưa mỗi khung hình nếu đang mưa
+            if (isRaining) {
+                weatherEffectView.updateRain();
+            }
+        }
+
+        // Làm tối màn hình một chút khi trời mưa để tăng tính chân thực
+        if (hudView != null) {
+            double currentIntensity = 1.0 - hudView.getDarknessOverlay().getOpacity();
+            double rainDarkness = isRaining ? com.example.farmSimulation.config.WeatherConfig.RAIN_DARKNESS_OPACITY : 0.0;
+            double newOpacity = Math.min(1.0 - currentIntensity + rainDarkness,
+                    com.example.farmSimulation.config.GameLogicConfig.MAX_DARKNESS_OPACITY);
+            hudView.getDarknessOverlay().setOpacity(newOpacity);
+        }
+    }
+
+    /**
+     * Hiển thị hoạt ảnh thu hoạch vật phẩm bay về túi đồ
+     */
     public void playHarvestAnimation(ItemType itemType, int col, int row, double worldOffsetX, double worldOffsetY) {
-        // Xác định tọa độ bắt đầu (Tại ô đất)
-        // Căn giữa icon vào ô đất
+        // Xác định tọa độ bắt đầu tại ô đất và căn giữa biểu tượng vào ô
         double startX = col * WorldConfig.TILE_SIZE + worldOffsetX + (WorldConfig.TILE_SIZE - HudConfig.HARVEST_ICON_SIZE) / 2;
         double startY = row * WorldConfig.TILE_SIZE + worldOffsetY + (WorldConfig.TILE_SIZE - HudConfig.HARVEST_ICON_SIZE) / 2;
 
-        // Xác định tọa độ đích (Ô trong Hotbar)
-        // Tìm xem item này đang nằm ở slot nào trong túi
+        // Xác định tọa độ đích là ô chứa vật phẩm trong Hotbar
         int targetSlotIndex = findSlotIndexForItem(itemType);
 
-        // Mặc định bay về giữa màn hình dưới nếu không tìm thấy (dự phòng)
+        // Mặc định bay về giữa màn hình dưới nếu không tìm thấy vị trí cụ thể
         double endX = WindowConfig.SCREEN_WIDTH / 2;
         double endY = WindowConfig.SCREEN_HEIGHT - 50;
 
@@ -273,7 +348,7 @@ public class MainGameView {
             }
         }
 
-        // Gọi Manager xử lý hiệu ứng
+        // Gọi trình quản lý xử lý hiệu ứng bay
         visualEffectManager.playItemFlyAnimation(
                 rootPane,
                 assetManager.getItemIcon(itemType),
@@ -283,7 +358,7 @@ public class MainGameView {
     }
 
     /**
-     * Hàm helper tìm vị trí slot chứa item (Ưu tiên slot đang chọn nếu trùng)
+     * Hàm hỗ trợ tìm vị trí slot chứa vật phẩm để làm đích đến cho hiệu ứng bay
      */
     private int findSlotIndexForItem(ItemType type) {
         if (gameManager == null || gameManager.getMainPlayer() == null) return -1;
@@ -291,140 +366,54 @@ public class MainGameView {
         ItemStack[] items = gameManager.getMainPlayer().getHotbarItems();
         int selectedSlot = gameManager.getMainPlayer().getSelectedHotbarSlot();
 
-        // Ưu tiên 1: Nếu slot đang chọn có item này -> Bay về đây
+        // Ưu tiên: Nếu slot đang chọn có chứa vật phẩm này thì bay về đây
         if (items[selectedSlot] != null && items[selectedSlot].getItemType() == type) {
             return selectedSlot;
         }
 
-        // Ưu tiên 2: Tìm slot đầu tiên chứa item này
+        // Ưu tiên: Tìm slot đầu tiên chứa vật phẩm này
         for (int i = 0; i < items.length; i++) {
             if (items[i] != null && items[i].getItemType() == type) {
                 return i;
             }
         }
 
-        // Ưu tiên 3: Item mới nhặt (chưa có trong túi)?
-        // Logic Player.addItem đã thêm vào ô trống đầu tiên.
-        // Ta tìm ô nào có item này (vừa được thêm vào)
-        // (Code trên đã bao phủ trường hợp này vì addItem đã chạy xong rồi)
-
-        return selectedSlot; // Fallback về slot đang chọn
+        return selectedSlot; // Mặc định trả về slot đang chọn nếu không tìm thấy
     }
 
+    // ==============================================================================================
+    // QUẢN LÝ GIAO DIỆN NGƯỜI DÙNG (MENUS, SHOP, QUESTS, GAME OVER)
+    // ==============================================================================================
+
     /**
-     * Set GameManager (được gọi từ Game.java sau khi khởi tạo)
-     * Dùng để khởi tạo ShopView (cần ShopManager từ GameManager)
+     * Hiển thị menu cài đặt với thông tin người chơi
      */
-    public void setGameManager(GameManager gameManager) {
-        this.gameManager = gameManager;
-
-        // Set references cho HudView
-        if (hudView != null) {
-            hudView.setGameManager(gameManager);
-            hudView.setMainGameView(this);
-            hudView.setAssetManager(assetManager); // Set ImageManager để load GUI icons
-        }
-
-        // Set callback cho HotbarView item drop (for trash can deletion)
-        if (hotbarView != null) {
-            hotbarView.setOnItemDropListener((slotIndex, scenePoint) -> {
-                // Check if dropped on trash can
-                if (hudView != null && hudView.isMouseOverTrash(scenePoint.getX(), scenePoint.getY())) {
-                    // Delete entire item stack at this slot (including tools with 0 durability)
-                    if (gameManager != null && gameManager.getMainPlayer() != null) {
-                        ItemStack[] items = gameManager.getMainPlayer().getHotbarItems();
-                        if (slotIndex >= 0 && slotIndex < items.length && items[slotIndex] != null) {
-                            items[slotIndex] = null; // Hard delete from inventory
-                            updateHotbar(); // Refresh hotbar display
-                            return true; // Indicate item was deleted
-                        }
-                    }
-                }
-                return false; // Not dropped on trash
-            });
-        }
-
-        // Set GameManager cho SettingsMenuView (để Resume và Brightness hoạt động đúng)
-        if (settingsMenu != null) {
-            settingsMenu.setGameManager(gameManager);
-        }
-
-        // [MỚI] Khởi tạo ShopView sau khi có gameManager
-        if (gameManager != null && gameManager.getShopManager() != null) {
-            this.shopView = new ShopView(gameManager.getShopManager(), assetManager);
-            // Đặt kích thước cố định để đảm bảo shop không bị shrink
-            shopView.setPrefSize(com.example.farmSimulation.config.ShopConfig.SHOP_WIDTH, com.example.farmSimulation.config.ShopConfig.SHOP_HEIGHT);
-            shopView.setMaxSize(com.example.farmSimulation.config.ShopConfig.SHOP_WIDTH, com.example.farmSimulation.config.ShopConfig.SHOP_HEIGHT);
-            // Căn giữa shop trên màn hình: x = (SCREEN_WIDTH - SHOP_WIDTH) / 2, y = (SCREEN_HEIGHT - SHOP_HEIGHT) / 2
-            shopView.setLayoutX((WindowConfig.SCREEN_WIDTH - com.example.farmSimulation.config.ShopConfig.SHOP_WIDTH) / 2);
-            shopView.setLayoutY((WindowConfig.SCREEN_HEIGHT - com.example.farmSimulation.config.ShopConfig.SHOP_HEIGHT) / 2);
-            // Thêm shopView vào rootPane (lớp trên cùng)
-            rootPane.getChildren().add(shopView);
-            // Đảm bảo shopView ở trên cùng (z-index cao nhất) khi được thêm vào
-            shopView.toFront();
-        }
-
-        // [MỚI] Khởi tạo QuestBoardView sau khi có gameManager
-        if (gameManager != null && gameManager.getQuestManager() != null && gameManager.getMainPlayer() != null) {
-            this.questBoardView = new QuestBoardView(gameManager.getQuestManager(), gameManager.getMainPlayer());
-            // Căn giữa quest board trên màn hình
-            questBoardView.setLayoutX((WindowConfig.SCREEN_WIDTH - com.example.farmSimulation.config.QuestConfig.QUEST_BOARD_WIDTH) / 2);
-            questBoardView.setLayoutY((WindowConfig.SCREEN_HEIGHT - com.example.farmSimulation.config.QuestConfig.QUEST_BOARD_HEIGHT) / 2);
-            // Thêm questBoardView vào rootPane (lớp trên cùng)
-            rootPane.getChildren().add(questBoardView);
-            // Đảm bảo questBoardView ở trên cùng khi được thêm vào
-            questBoardView.toFront();
-        }
+    public void showSettingsMenu(String playerName, int playerLevel) {
+        settingsMenu.updatePlayerInfo(playerName, playerLevel);
+        settingsMenu.show();
     }
 
     /**
-     * Cập nhật hiển thị số tiền
+     * Ẩn menu cài đặt
      */
-    public void updateMoneyDisplay(double amount) {
-        if (hudView != null) {
-            hudView.updateMoney(amount);
-        }
+    public void hideSettingsMenu() {
+        settingsMenu.hide();
     }
 
     /**
-     * Cập nhật hiệu ứng thời tiết
-     */
-    public void updateWeather(boolean isRaining) {
-        if (weatherEffectView != null) {
-            // Chỉ setRaining khi trạng thái thay đổi (trong setRaining đã có check)
-            weatherEffectView.setRaining(isRaining);
-
-            // Luôn cập nhật animation mưa mỗi frame nếu đang mưa
-            if (isRaining) {
-                weatherEffectView.updateRain();
-            }
-        }
-
-        // [MỚI] Làm tối màn hình một chút khi mưa
-        if (hudView != null) {
-            double currentIntensity = 1.0 - hudView.getDarknessOverlay().getOpacity();
-            double rainDarkness = isRaining ? com.example.farmSimulation.config.WeatherConfig.RAIN_DARKNESS_OPACITY : 0.0;
-            double newOpacity = Math.min(1.0 - currentIntensity + rainDarkness,
-                    com.example.farmSimulation.config.GameLogicConfig.MAX_DARKNESS_OPACITY);
-            hudView.getDarknessOverlay().setOpacity(newOpacity);
-        }
-    }
-
-    /**
-     * Toggle shop (bật/tắt shop)
-     * Tự động đóng Settings Menu nếu đang mở để tránh overlap
+     * Bật/Tắt hiển thị cửa hàng.
+     * Tự động đóng Menu Cài đặt nếu đang mở để tránh chồng chéo giao diện.
      */
     public void toggleShop() {
         if (shopView != null) {
             boolean wasVisible = shopView.isShopVisible();
             shopView.toggle();
 
-            // Nếu shop được mở, đóng Settings Menu nếu đang mở
+            // Nếu cửa hàng được mở, cần đóng Menu Cài đặt nếu nó đang hiển thị
             if (!wasVisible && shopView.isShopVisible()) {
-                // Đóng Settings Menu nếu đang mở để tránh overlap
                 if (settingsMenu != null && settingsMenu.isVisible()) {
                     hideSettingsMenu();
-                    // Resume game loop nếu đang pause (Settings menu đang pause game)
+                    // Tiếp tục vòng lặp game nếu đang bị tạm dừng bởi Settings
                     if (gameManager != null && gameManager.isPaused()) {
                         gameManager.setPaused(false);
                         if (gameManager.getGameLoop() != null) {
@@ -433,36 +422,33 @@ public class MainGameView {
                     }
                 }
             }
-
-            // Đảm bảo shop hiển thị ở lớp trên cùng khi mở
-            // (toFront() được gọi trong ShopView.toggle() khi mở)
         }
     }
 
     /**
-     * Kiểm tra shop có đang hiển thị không
+     * Kiểm tra xem cửa hàng có đang hiển thị hay không
      */
     public boolean isShopVisible() {
         return shopView != null && shopView.isShopVisible();
     }
 
     /**
-     * Toggle Quest Board
+     * Bật/Tắt hiển thị Bảng nhiệm vụ
      */
     public void toggleQuestBoard() {
         if (questBoardView != null) {
             boolean wasVisible = questBoardView.isQuestBoardVisible();
             questBoardView.toggle();
 
-            // Nếu quest board được mở, đóng Settings Menu và Shop nếu đang mở
+            // Nếu bảng nhiệm vụ được mở, đóng Menu Cài đặt và Cửa hàng nếu đang mở
             if (!wasVisible && questBoardView.isQuestBoardVisible()) {
                 if (settingsMenu != null && settingsMenu.isVisible()) {
                     hideSettingsMenu();
                 }
                 if (shopView != null && shopView.isShopVisible()) {
-                    shopView.toggle(); // Close shop by toggling
+                    shopView.toggle(); // Đóng cửa hàng
                 }
-                // Quest Board KHÔNG pause game - game tiếp tục chạy trong background
+                // Bảng nhiệm vụ không làm tạm dừng game, game vẫn chạy nền
             }
 
             questBoardView.toFront();
@@ -470,48 +456,46 @@ public class MainGameView {
     }
 
     /**
-     * Kiểm tra quest board có đang hiển thị không
+     * Kiểm tra xem bảng nhiệm vụ có đang hiển thị hay không
      */
     public boolean isQuestBoardVisible() {
         return questBoardView != null && questBoardView.isQuestBoardVisible();
     }
 
     /**
-     * Create Game Over UI Overlay
+     * Tạo giao diện lớp phủ Game Over
      */
     private void createGameOverOverlay() {
         gameOverOverlay = new StackPane();
         gameOverOverlay.setPrefSize(WindowConfig.SCREEN_WIDTH, WindowConfig.SCREEN_HEIGHT);
-        gameOverOverlay.setStyle("-fx-background-color: rgba(0,0,0,0.8);"); // Dark, semi-transparent background
+        gameOverOverlay.setStyle("-fx-background-color: rgba(0,0,0,0.8);"); // Nền tối bán trong suốt
 
-        // Content VBox centered in overlay
+        // Hộp chứa nội dung căn giữa
         VBox contentBox = new VBox(30);
         contentBox.setAlignment(Pos.CENTER);
         contentBox.setMaxWidth(400);
 
-        // "GAME OVER" Label (Large, Red/White font)
+        // Nhãn "GAME OVER" font lớn, màu đỏ viền trắng
         Label gameOverLabel = new Label("GAME OVER");
         gameOverLabel.setFont(Font.font("Arial", FontWeight.BOLD, 48));
         gameOverLabel.setTextFill(Color.WHITE);
         gameOverLabel.setStyle("-fx-effect: dropshadow(one-pass-box, red, 5, 0, 0, 0);");
 
-        // HBox with two buttons: RESTART and QUIT
         HBox buttonBox = new HBox(20);
         buttonBox.setAlignment(Pos.CENTER);
 
-        // [SỬA] Đổi nút RESTART thành MAIN MENU
+        // Nút quay về màn hình chính
         Button restartButton = new Button("MAIN MENU");
         restartButton.setPrefSize(150, 50);
         restartButton.setFont(Font.font("Arial", FontWeight.BOLD, 18));
         restartButton.setStyle("-fx-background-color: #2ecc71; -fx-text-fill: white;");
         restartButton.setOnAction(e -> {
             if (gameManager != null) {
-                // Thay vì restartGame(), gọi returnToMainMenu()
                 gameManager.returnToMainMenu();
             }
         });
 
-        // QUIT Button
+        // Nút thoát game
         Button quitButton = new Button("QUIT");
         quitButton.setPrefSize(150, 50);
         quitButton.setFont(Font.font("Arial", FontWeight.BOLD, 18));
@@ -523,26 +507,70 @@ public class MainGameView {
 
         gameOverOverlay.getChildren().add(contentBox);
 
-        // Hide by default
+        // Mặc định ẩn
         gameOverOverlay.setVisible(false);
     }
 
     /**
-     * Show Game Over UI
+     * Hiển thị giao diện Game Over
      */
     public void showGameOverUI() {
         if (gameOverOverlay != null) {
             gameOverOverlay.setVisible(true);
-            gameOverOverlay.toFront(); // Ensure it's on top
+            gameOverOverlay.toFront(); // Đảm bảo lớp phủ nằm trên cùng
         }
     }
 
     /**
-     * Hide Game Over UI
+     * Ẩn giao diện Game Over
      */
     public void hideGameOverUI() {
         if (gameOverOverlay != null) {
             gameOverOverlay.setVisible(false);
+        }
+    }
+
+    // ==============================================================================================
+    // CÁC HÀM HỖ TRỢ DEBUG
+    // ==============================================================================================
+
+    /**
+     * Cập nhật vị trí và kích thước của vùng va chạm (Hitbox) dùng cho mục đích debug
+     */
+    public void updateCollisionHitbox(double playerWorldX, double playerWorldY, double worldOffsetX, double worldOffsetY, javafx.scene.shape.Rectangle debugCollisionHitbox) {
+        if (debugCollisionHitbox != null && PlayerSpriteConfig.DEBUG_PLAYER_BOUNDS) {
+            // 1. Cập nhật kích thước vùng va chạm theo cấu hình
+            if (debugCollisionHitbox.getWidth() != PlayerSpriteConfig.COLLISION_BOX_WIDTH) {
+                debugCollisionHitbox.setWidth(PlayerSpriteConfig.COLLISION_BOX_WIDTH);
+                debugCollisionHitbox.setHeight(PlayerSpriteConfig.COLLISION_BOX_HEIGHT);
+            }
+
+            // 2. Tính toán vị trí hiển thị trên màn hình
+            double screenX = playerWorldX + worldOffsetX;
+            double screenY = playerWorldY + worldOffsetY;
+
+            // 3. Căn chỉnh vị trí:
+            // Nhân vật gốc rộng 192x192 nhưng đã được thu nhỏ tỷ lệ 0.6
+            // Kích thước thực tế hiển thị = 192 * 0.6 = 115.2
+
+            double scaledPlayerWidth = PlayerSpriteConfig.BASE_PLAYER_FRAME_WIDTH * PlayerSpriteConfig.BASE_PLAYER_FRAME_SCALE;
+            double scaledPlayerHeight = PlayerSpriteConfig.BASE_PLAYER_FRAME_HEIGHT * PlayerSpriteConfig.BASE_PLAYER_FRAME_SCALE;
+
+            // Offset X: Căn giữa hitbox theo chiều ngang của nhân vật
+            double offsetX = (scaledPlayerWidth - PlayerSpriteConfig.COLLISION_BOX_WIDTH) / 2;
+
+            // Offset Y: Căn xuống dưới chân nhân vật
+            // Logic: Chiều cao đã điều chỉnh tỷ lệ trừ đi chiều cao vùng va chạm và khoảng cách đệm phía dưới
+            double offsetY = scaledPlayerHeight
+                    - PlayerSpriteConfig.COLLISION_BOX_HEIGHT
+                    - PlayerSpriteConfig.COLLISION_BOX_BOTTOM_PADDING;
+
+            debugCollisionHitbox.setLayoutX(screenX + offsetX);
+            debugCollisionHitbox.setLayoutY(screenY + offsetY);
+
+            debugCollisionHitbox.setVisible(true);
+        } else if (debugCollisionHitbox != null) {
+            debugCollisionHitbox.setVisible(false);
         }
     }
 }

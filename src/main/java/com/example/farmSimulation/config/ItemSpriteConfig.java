@@ -3,6 +3,7 @@ package com.example.farmSimulation.config;
 // Chứa các hằng số cấu hình cho sprite của item trong items_32x32.png
 public class ItemSpriteConfig {
 
+    // Kích thước item
     public static final double ITEM_SPRITE_WIDTH = 32.0;
     public static final double ITEM_SPRITE_HEIGHT = 32.0;
 
