@@ -1,149 +1,131 @@
-Farm Simulation Game (Mô Phỏng Nông Trại)
+# Game Mô Phỏng Nông Trại (Java)
 
-Chào mừng đến với game mô phỏng nông trại được viết bằng ngôn ngữ Java. Trò chơi cho phép bạn trải nghiệm cuộc sống của một người nông dân: trồng trọt, chăn nuôi, buôn bán và hoàn thành các nhiệm vụ thú vị.
+Chào mừng bạn đến với game mô phỏng nông trại được viết bằng ngôn ngữ Java. Trò chơi cho phép bạn trải nghiệm cuộc sống của một người nông dân: trồng trọt, chăn nuôi, buôn bán và hoàn thành các nhiệm vụ trong game.
 
-📋 Mục lục
+---
 
-Yêu cầu hệ thống
+## Mục lục
 
-Cách chạy game
+* Yêu cầu hệ thống
+* Cách chạy game
+* Các phím điều khiển
+* Hướng dẫn chơi game
+* Tính năng nổi bật
 
-Các phím điều khiển
+---
 
-Hướng dẫn chơi game
+## Yêu cầu hệ thống
 
-Tính năng nổi bật
+* Java Development Kit (JDK): Phiên bản 8 trở lên (khuyến nghị JDK 17 hoặc JDK 21).
+* Hệ điều hành: Windows, macOS hoặc Linux.
+* IDE (khuyến nghị): IntelliJ IDEA, Eclipse hoặc NetBeans để dễ dàng biên dịch và chạy game.
 
-💻 Yêu cầu hệ thống
+---
 
-Java Development Kit (JDK): Phiên bản 8 trở lên (Khuyến nghị JDK 17 hoặc 21).
+## Cách chạy game
 
-Hệ điều hành: Windows, MacOS, hoặc Linux.
+### Cách 1: Chạy bằng IDE (khuyến nghị)
 
-IDE (Khuyến nghị): IntelliJ IDEA, Eclipse, hoặc NetBeans để dễ dàng biên dịch và chạy.
+1. Mở IDE (IntelliJ IDEA, Eclipse hoặc IDE tương đương).
+2. Chọn File > Open (hoặc Import Project) và trỏ đến thư mục chứa mã nguồn (thư mục cha của `farmSimulation`).
+3. Tìm file `farmSimulation/Main.java`.
+4. Chuột phải vào file `Main.java` và chọn Run.
 
-🚀 Cách chạy game
+### Cách 2: Chạy bằng dòng lệnh (Command Line / Terminal)
 
-Cách 1: Chạy bằng IDE (IntelliJ IDEA, Eclipse) - Khuyên dùng
+1. Mở Terminal hoặc Command Prompt.
 
-Mở IDE của bạn.
+2. Di chuyển đến thư mục chứa mã nguồn (thư mục chứa folder `farmSimulation`).
 
-Chọn File > Open (hoặc Import Project) và trỏ đến thư mục chứa source code (thư mục cha của farmSimulation).
+3. Biên dịch mã nguồn:
 
-Tìm file farmSimulation/Main.java.
+   javac -d bin farmSimulation/Main.java
 
-Chuột phải vào file Main.java và chọn Run 'Main'.
+   Lưu ý: Nếu lệnh trên báo lỗi thiếu file, hãy biên dịch toàn bộ thư mục mã nguồn.
 
-Cách 2: Chạy bằng dòng lệnh (Command Line/Terminal)
+4. Chạy game:
 
-Mở Terminal hoặc Command Prompt.
+   java -cp bin farmSimulation.Main
 
-Di chuyển đến thư mục chứa mã nguồn (thư mục chứa folder farmSimulation).
+---
 
-Biên dịch mã nguồn:
+## Các phím điều khiển
 
-javac -d bin farmSimulation/Main.java
+### Di chuyển nhân vật
 
+* W: Di chuyển lên trên.
+* S: Di chuyển xuống dưới.
+* A: Di chuyển sang trái.
+* D: Di chuyển sang phải.
 
-(Lưu ý: Nếu lệnh trên báo lỗi thiếu file, bạn có thể cần biên dịch toàn bộ thư mục).
+### Tương tác và công cụ
 
-Chạy game:
+* Chuột trái:
 
-java -cp bin farmSimulation.Main
+    * Tương tác với ô đất (cuốc đất, gieo hạt, tưới nước).
+    * Tương tác với NPC (cửa hàng, nhiệm vụ).
+    * Chọn vật phẩm trong túi đồ.
+* Phím số (1-9): Chọn nhanh công cụ hoặc vật phẩm trên thanh hotbar.
+* E: Mở hoặc đóng túi đồ (Inventory) hoặc tương tác tùy ngữ cảnh.
+* ESC: Mở menu cài đặt hoặc tạm dừng game.
 
+---
 
-🎮 Các phím điều khiển
+## Hướng dẫn chơi game
 
-Di chuyển & Nhân vật
+### Khởi tạo nhân vật
 
-W : Di chuyển lên trên.
+Khi bắt đầu game, bạn sẽ vào màn hình tạo nhân vật.
 
-S: Di chuyển xuống dưới.
+* Nhập tên nhân vật.
+* Chọn giao diện (sprite) nhân vật.
+* Nhấn Start Game để bắt đầu chơi.
 
-A: Di chuyển sang trái.
+### Trồng trọt (cơ bản)
 
-D: Di chuyển sang phải.
+Để kiếm tiền, người chơi cần trồng và thu hoạch nông sản:
 
-Tương tác & Công cụ
+1. Làm đất: Chọn cuốc (Hoe) trên thanh công cụ và nhấp chuột vào ô đất cỏ để xới đất.
+2. Gieo hạt: Mua hạt giống tại cửa hàng, chọn hạt giống và nhấp vào ô đất đã xới.
+3. Tưới nước: Chọn bình tưới (Watering Can) và nhấp vào ô đất đã gieo hạt. Đất sẽ sẫm màu lại.
 
-Chuột Trái: * Tương tác với ô đất (Cuốc, Gieo hạt, Tưới nước).
+Lưu ý: Cây cần được tưới nước mỗi ngày để phát triển.
 
-Tương tác với NPC (Cửa hàng, Nhiệm vụ).
+4. Thu hoạch: Khi cây trưởng thành (hình ảnh thay đổi), nhấp chuột để thu hoạch. Nông sản sẽ được đưa vào túi đồ.
 
-Chọn vật phẩm trong Túi đồ.
+### Cửa hàng
 
-Phím số (1-9): Chọn công cụ/vật phẩm nhanh trên thanh Hotbar.
+* Tìm NPC bán hàng hoặc khu vực cửa hàng trên bản đồ.
+* Nhấp chuột vào cửa hàng để mở giao diện mua bán.
+* Mua: Hạt giống, công cụ và các vật phẩm nâng cấp.
+* Bán: Nông sản đã thu hoạch để nhận vàng (Gold).
 
-E: Mở/Đóng túi đồ (Inventory) hoặc Tương tác (tùy ngữ cảnh).
+### Chăn nuôi
 
-ESC: Mở Menu Cài đặt (Settings) / Tạm dừng game.
+* Mua gia súc hoặc gia cầm (gà, bò, v.v.) tại cửa hàng chăn nuôi.
+* Cho vật nuôi ăn hằng ngày.
+* Thu thập sản phẩm như trứng hoặc sữa sau một khoảng thời gian nhất định.
 
-🌾 Hướng dẫn chơi game
+### Hệ thống thời gian và thời tiết
 
-1. Khởi tạo nhân vật
+* Thời gian: Game có chu kỳ ngày và đêm. Người chơi cần quản lý thời gian hợp lý.
+* Ngủ: Khi trời tối hoặc năng lượng (Stamina) cạn, hãy về nhà và đi ngủ để hồi phục và chuyển sang ngày mới.
+* Thời tiết: Trời có thể nắng hoặc mưa. Khi trời mưa, cây trồng sẽ được tưới tự động.
 
-Khi bắt đầu game, bạn sẽ vào màn hình Character Creation.
+### Nhiệm vụ
 
-Nhập tên nhân vật của bạn.
+* Kiểm tra bảng nhiệm vụ (Quest Board) để nhận thử thách.
+* Hoàn thành nhiệm vụ (ví dụ: thu hoạch 10 củ cà rốt) để nhận phần thưởng.
 
-Chọn giao diện nhân vật (Sprite) mà bạn thích.
+---
 
-Nhấn Start Game để bắt đầu.
+## Tính năng nổi bật
 
-2. Trồng trọt (Cơ bản)
+* Hệ thống Inventory và Hotbar: Quản lý vật phẩm trực quan, thao tác nhanh.
+* Lưu và tải game (Save/Load): Đảm bảo không mất tiến trình chơi.
+* Hiệu ứng hình ảnh: Hiệu ứng thời tiết, cuốc đất và tưới nước sinh động.
+* Âm thanh: Nhạc nền thư giãn và âm thanh tương tác trong game.
 
-Để kiếm tiền, bạn cần trồng nông sản:
+---
 
-Làm đất: Chọn cái Cuốc (Hoe) trên thanh công cụ và click vào ô đất cỏ để xới đất.
-
-Gieo hạt: Mua hạt giống từ Cửa hàng (Shop), chọn hạt giống trên tay và click vào ô đất đã xới.
-
-Tưới nước: Chọn Bình tưới (Watering Can) và click vào ô đất đã gieo hạt. Đất sẽ sẫm màu lại.
-
-Lưu ý: Cây cần được tưới nước mỗi ngày để lớn lên.
-
-Thu hoạch: Khi cây trưởng thành (hình dạng thay đổi), click chuột để thu hoạch. Nông sản sẽ vào túi đồ của bạn.
-
-3. Cửa hàng (Shop)
-
-Tìm NPC bán hàng hoặc khu vực Shop trên bản đồ.
-
-Click vào Shop để mở giao diện mua bán.
-
-Mua: Chọn hạt giống, công cụ hoặc vật phẩm nâng cấp.
-
-Bán: Chọn nông sản bạn đã thu hoạch để bán lấy Vàng (Gold).
-
-4. Chăn nuôi
-
-Bạn có thể mua gia súc/gia cầm (Gà, Bò, v.v.) từ cửa hàng chăn nuôi.
-
-Đảm bảo cho chúng ăn hàng ngày.
-
-Thu thập sản phẩm (Trứng, Sữa) sau một khoảng thời gian nhất định.
-
-5. Hệ thống Thời gian & Thời tiết
-
-Thời gian: Game có chu kỳ Sáng/Tối. Hãy chú ý thời gian để làm việc hiệu quả.
-
-Ngủ: Khi trời tối hoặc thanh năng lượng (Stamina) cạn kiệt, hãy về nhà và đi ngủ để hồi phục và chuyển sang ngày hôm sau.
-
-Thời tiết: Trời có thể Nắng hoặc Mưa. Nếu trời mưa, bạn không cần tưới cây (tiết kiệm sức lực).
-
-6. Nhiệm vụ (Quests)
-
-Kiểm tra Bảng Nhiệm vụ (Quest Board) để nhận các thử thách.
-
-Hoàn thành nhiệm vụ (ví dụ: Thu hoạch 10 củ cà rốt) để nhận phần thưởng lớn.
-
-✨ Tính năng nổi bật
-
-Hệ thống Inventory & Hotbar: Quản lý vật phẩm mượt mà, kéo thả tiện lợi.
-
-Lưu game (Save/Load): Game tự động lưu hoặc cho phép lưu thủ công để bạn không mất tiến trình.
-
-Hiệu ứng hình ảnh: Hiệu ứng thời tiết (Mưa, Nắng), hiệu ứng khi cuốc đất hay tưới nước.
-
-Âm thanh: Nhạc nền thư giãn và âm thanh tương tác sống động.
-
-Chúc bạn có những giờ phút thư giãn vui vẻ cùng Nông trại của mình!
+Chúc bạn có những giờ phút thư giãn và trải nghiệm thú vị cùng game mô phỏng nông trại.
