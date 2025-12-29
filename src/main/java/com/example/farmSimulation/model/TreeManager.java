@@ -54,16 +54,39 @@ public class TreeManager {
         return false;
     }
 
-    // Hàm tạo nhiễu xác định dựa trên tọa độ và seed của thế giới.
-    // Giúp việc sinh ngẫu nhiên luôn trả về cùng một kết quả tại cùng một vị trí.
+    // Hàm tạo nhiễu xác định (deterministic noise) dựa trên tọa độ (x, y) và seed của thế giới.
+// Với cùng x, y và worldSeed thì kết quả luôn giống nhau.
+// Dùng cho sinh map, tile, vật thể một cách ngẫu nhiên nhưng có thể tái tạo lại.
     private double getDeterministicNoise(int x, int y) {
+
+        // Khởi tạo giá trị hash ban đầu từ seed của thế giới
+        // Seed quyết định toàn bộ hình dạng của thế giới
         long hash = worldSeed;
+
+        // Trộn tọa độ x vào hash bằng phép XOR và nhân với số nguyên tố lớn
+        // Giúp mỗi giá trị x tạo ảnh hưởng mạnh và khác biệt
         hash ^= (long) x * 73856093;
+
+        // Trộn tọa độ y vào hash theo cách tương tự
+        // Đảm bảo x và y ảnh hưởng độc lập đến kết quả
         hash ^= (long) y * 19349663;
+
+        // Trộn thêm tương tác giữa x và y
+        // Tránh các pattern lặp theo hàng hoặc cột
         hash ^= (long) x * y * 83492791;
+
+        // Bước khuếch tán bit (avalanche effect)
+        // Trộn bit cao xuống bit thấp để phân bố đều hơn
         hash = (hash ^ (hash >>> 16)) * 0x85ebca6b;
+
+        // Tiếp tục khuếch tán bit để tăng độ ngẫu nhiên
         hash = (hash ^ (hash >>> 13)) * 0xc2b2ae35;
+
+        // Kết thúc quá trình trộn bit
         hash = hash ^ (hash >>> 16);
+
+        // Chuẩn hóa kết quả về khoảng [0, 1)
+        // & Long.MAX_VALUE để đảm bảo giá trị không âm
         return (hash & Long.MAX_VALUE) / (double) Long.MAX_VALUE;
     }
 
