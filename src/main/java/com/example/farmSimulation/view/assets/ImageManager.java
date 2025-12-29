@@ -506,6 +506,7 @@ public class ImageManager {
             case EGG: col = ItemSpriteConfig.ITEM_EGG_COL; break;
             case WOOD: col = ItemSpriteConfig.ITEM_WOOD_COL; break;
             case WOOL: col = ItemSpriteConfig.ITEM_WOOL_COL; break;
+            case MILK: col = ItemSpriteConfig.ITEM_FULL_MILK_BUCKET_COL; break;
             case MEAT_CHICKEN: col = ItemSpriteConfig.ITEM_MEAT_CHICKEN_COL; break;
             case MEAT_COW: col = ItemSpriteConfig.ITEM_MEAT_COW_COL; break;
             case MEAT_PIG: col = ItemSpriteConfig.ITEM_MEAT_PIG_COL; break;
