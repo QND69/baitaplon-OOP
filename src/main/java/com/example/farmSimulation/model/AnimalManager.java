@@ -747,21 +747,11 @@ public class AnimalManager {
      * Dựa trên hệ thống va chạm (Collision System) của game.
      */
     private boolean canAnimalMoveTo(Animal animal, double newX, double newY) {
-        // Lấy kích thước hitbox của động vật
-        double halfWidth = animal.getType().getHitboxWidth() / 2.0;
-        double halfHeight = animal.getType().getHitboxHeight() / 2.0;
-
-        // Kiểm tra va chạm tại 4 góc của hitbox để đảm bảo không bị kẹt một phần
-        if (!collisionManager.canPassThrough(newX - halfWidth, newY - halfHeight)) return false;
-        if (!collisionManager.canPassThrough(newX + halfWidth, newY - halfHeight)) return false;
-        if (!collisionManager.canPassThrough(newX - halfWidth, newY + halfHeight)) return false;
-        if (!collisionManager.canPassThrough(newX + halfWidth, newY + halfHeight)) return false;
-
-        // Kiểm tra điểm trung tâm
-        if (!collisionManager.canPassThrough(newX, newY)) return false;
-
-        return true;
+        return !collisionManager.checkCollision(newX, newY,
+                animal.getType().getHitboxWidth(),
+                animal.getType().getHitboxHeight());
     }
+
 
     // -------------------------------------------------------------------------
     // 6. CÁC PHƯƠNG THỨC TƯƠNG TÁC (PUBLIC INTERFACE)

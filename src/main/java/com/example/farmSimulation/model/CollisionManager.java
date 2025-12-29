@@ -18,7 +18,7 @@ public class CollisionManager {
 
     /**
      * Kiểm tra xem một vị trí tọa độ cụ thể có thể đi qua được không.
-     * * @param tileX Tọa độ X thực (tính theo pixel)
+     * @param tileX Tọa độ X thực (tính theo pixel)
      * @param tileY Tọa độ Y thực (tính theo pixel)
      * @return true nếu có thể đi qua, false nếu bị chặn bởi vật cản
      */
@@ -159,7 +159,7 @@ public class CollisionManager {
 
     /**
      * Kiểm tra va chạm với một hộp giới hạn hình chữ nhật (Bounding Box).
-     * * @param centerX Tọa độ X trung tâm của hộp
+     * @param centerX Tọa độ X trung tâm của hộp
      * @param centerY Tọa độ Y trung tâm của hộp
      * @param width Chiều rộng hộp
      * @param height Chiều cao hộp

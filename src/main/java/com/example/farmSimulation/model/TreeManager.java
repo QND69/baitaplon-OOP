@@ -55,8 +55,8 @@ public class TreeManager {
     }
 
     // Hàm tạo nhiễu xác định (deterministic noise) dựa trên tọa độ (x, y) và seed của thế giới.
-// Với cùng x, y và worldSeed thì kết quả luôn giống nhau.
-// Dùng cho sinh map, tile, vật thể một cách ngẫu nhiên nhưng có thể tái tạo lại.
+    // Với cùng x, y và worldSeed thì kết quả luôn giống nhau.
+    // Dùng cho sinh map, tile, vật thể một cách ngẫu nhiên nhưng có thể tái tạo lại.
     private double getDeterministicNoise(int x, int y) {
 
         // Khởi tạo giá trị hash ban đầu từ seed của thế giới
