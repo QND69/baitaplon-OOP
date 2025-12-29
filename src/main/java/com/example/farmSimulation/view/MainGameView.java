@@ -1,9 +1,6 @@
 package com.example.farmSimulation.view;
 
-import com.example.farmSimulation.config.HudConfig;
-import com.example.farmSimulation.config.PlayerSpriteConfig;
-import com.example.farmSimulation.config.WindowConfig;
-import com.example.farmSimulation.config.WorldConfig;
+import com.example.farmSimulation.config.*;
 import com.example.farmSimulation.model.GameManager;
 import com.example.farmSimulation.controller.GameController;
 import com.example.farmSimulation.model.ItemStack;
@@ -199,11 +196,11 @@ public class MainGameView {
         if (gameManager != null && gameManager.getShopManager() != null) {
             this.shopView = new ShopView(gameManager.getShopManager(), assetManager);
             // Đặt kích thước cố định để đảm bảo giao diện cửa hàng không bị co lại
-            shopView.setPrefSize(com.example.farmSimulation.config.ShopConfig.SHOP_WIDTH, com.example.farmSimulation.config.ShopConfig.SHOP_HEIGHT);
-            shopView.setMaxSize(com.example.farmSimulation.config.ShopConfig.SHOP_WIDTH, com.example.farmSimulation.config.ShopConfig.SHOP_HEIGHT);
+            shopView.setPrefSize(ShopConfig.SHOP_WIDTH, ShopConfig.SHOP_HEIGHT);
+            shopView.setMaxSize(ShopConfig.SHOP_WIDTH, ShopConfig.SHOP_HEIGHT);
             // Căn giữa cửa hàng trên màn hình
-            shopView.setLayoutX((WindowConfig.SCREEN_WIDTH - com.example.farmSimulation.config.ShopConfig.SHOP_WIDTH) / 2);
-            shopView.setLayoutY((WindowConfig.SCREEN_HEIGHT - com.example.farmSimulation.config.ShopConfig.SHOP_HEIGHT) / 2);
+            shopView.setLayoutX((WindowConfig.SCREEN_WIDTH - ShopConfig.SHOP_WIDTH) / 2);
+            shopView.setLayoutY((WindowConfig.SCREEN_HEIGHT - ShopConfig.SHOP_HEIGHT) / 2);
             // Thêm shopView vào rootPane và đưa lên lớp trên cùng
             rootPane.getChildren().add(shopView);
             shopView.toFront();
@@ -213,8 +210,8 @@ public class MainGameView {
         if (gameManager != null && gameManager.getQuestManager() != null && gameManager.getMainPlayer() != null) {
             this.questBoardView = new QuestBoardView(gameManager.getQuestManager(), gameManager.getMainPlayer());
             // Căn giữa bảng nhiệm vụ trên màn hình
-            questBoardView.setLayoutX((WindowConfig.SCREEN_WIDTH - com.example.farmSimulation.config.QuestConfig.QUEST_BOARD_WIDTH) / 2);
-            questBoardView.setLayoutY((WindowConfig.SCREEN_HEIGHT - com.example.farmSimulation.config.QuestConfig.QUEST_BOARD_HEIGHT) / 2);
+            questBoardView.setLayoutX((WindowConfig.SCREEN_WIDTH - QuestConfig.QUEST_BOARD_WIDTH) / 2);
+            questBoardView.setLayoutY((WindowConfig.SCREEN_HEIGHT - QuestConfig.QUEST_BOARD_HEIGHT) / 2);
             // Thêm questBoardView vào rootPane và đưa lên lớp trên cùng
             rootPane.getChildren().add(questBoardView);
             questBoardView.toFront();
@@ -320,7 +317,7 @@ public class MainGameView {
             double currentIntensity = 1.0 - hudView.getDarknessOverlay().getOpacity();
             double rainDarkness = isRaining ? com.example.farmSimulation.config.WeatherConfig.RAIN_DARKNESS_OPACITY : 0.0;
             double newOpacity = Math.min(1.0 - currentIntensity + rainDarkness,
-                    com.example.farmSimulation.config.GameLogicConfig.MAX_DARKNESS_OPACITY);
+                    GameLogicConfig.MAX_DARKNESS_OPACITY);
             hudView.getDarknessOverlay().setOpacity(newOpacity);
         }
     }

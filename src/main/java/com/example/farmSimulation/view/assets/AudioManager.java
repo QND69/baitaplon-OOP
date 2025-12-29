@@ -43,10 +43,7 @@ public class AudioManager {
             
             // Phát nhạc
             mediaPlayer.play();
-            
-            System.out.println("AudioManager: Nhạc nền đã bắt đầu phát: " + resourcePath);
         } catch (Exception e) {
-            System.err.println("AudioManager: Lỗi khi phát nhạc nền: " + e.getMessage());
             e.printStackTrace();
         }
     }
@@ -57,7 +54,6 @@ public class AudioManager {
     public void pauseMusic() {
         if (mediaPlayer != null) {
             mediaPlayer.pause();
-            System.out.println("AudioManager: Nhạc nền đã tạm dừng");
         }
     }
     
@@ -67,7 +63,6 @@ public class AudioManager {
     public void resumeMusic() {
         if (mediaPlayer != null) {
             mediaPlayer.play();
-            System.out.println("AudioManager: Nhạc nền đã tiếp tục");
         }
     }
     
@@ -93,7 +88,6 @@ public class AudioManager {
             mediaPlayer.stop();
             mediaPlayer.dispose();
             mediaPlayer = null;
-            System.out.println("AudioManager: Nhạc nền đã dừng và giải phóng tài nguyên");
         }
     }
 }

@@ -21,25 +21,6 @@ public class WorldMap {
     }
 
     /**
-     * Hàm sẽ lấy TileData (hoặc tạo mới nếu không tồn tại)
-     * và trả về loại đất CƠ BẢN (baseTileType) của nó.
-     */
-    public Tile getTileType(int col, int row) {
-        return getTileData(col, row).getBaseTileType();
-    }
-
-    /**
-     * Hàm này giờ sẽ lấy TileData và set loại đất CƠ BẢN.
-     */
-    public void setTileType(int col, int row, Tile newTile) {
-        // Lấy data (hoặc tạo mới) và set loại tile
-        TileData data = getTileData(col, row);
-        data.setBaseTileType(newTile);
-        // Put lại vào map
-        tileDataMap.put(toKey(col, row), data);
-    }
-
-    /**
      * Hàm quan trọng: Lấy TOÀN BỘ DỮ LIỆU của một ô.
      * Nếu ô đó không tồn tại trong map (ví dụ: vùng đất mới),
      * nó sẽ tự động tạo một TileData (GRASS) mặc định, lưu lại và trả về.
@@ -72,7 +53,7 @@ public class WorldMap {
     }
 
     /**
-     * [MỚI] Trả về map gốc để truy cập cả Key (tọa độ) và Value (dữ liệu).
+     * Trả về map gốc để truy cập cả Key (tọa độ) và Value (dữ liệu).
      * Cần thiết cho việc lưu game và cập nhật Fence toàn cục.
      */
     public java.util.Map<Long, TileData> getTileDataMap() {

@@ -85,7 +85,7 @@ public class TreeConfig {
     // --- Cấu hình Debug Hitbox ---
 
     /** Bật/Tắt hiển thị hitbox collision của cây (chỉ khi DEBUG_PLAYER_BOUNDS = true) */
-    public static final boolean DEBUG_TREE_HITBOX = false;
+    public static final boolean DEBUG_TREE_HITBOX = true;
 
     /** Màu viền hitbox của cây */
     public static final Color DEBUG_TREE_HITBOX_COLOR = Color.MAGENTA;

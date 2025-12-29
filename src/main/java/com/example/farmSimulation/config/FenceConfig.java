@@ -36,7 +36,7 @@ public class FenceConfig {
     // --- Cấu hình Debug Hitbox ---
     
     /** Bật/Tắt hiển thị hitbox collision của rào (chỉ khi DEBUG_PLAYER_BOUNDS = true) */
-    public static final boolean DEBUG_FENCE_HITBOX = false;
+    public static final boolean DEBUG_FENCE_HITBOX = true;
     
     /** Màu viền hitbox của rào */
     public static final Color DEBUG_FENCE_HITBOX_COLOR = Color.CYAN;

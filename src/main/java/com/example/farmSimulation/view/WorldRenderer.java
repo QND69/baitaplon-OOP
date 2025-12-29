@@ -8,11 +8,7 @@ import com.example.farmSimulation.config.TreeConfig;
 import com.example.farmSimulation.config.FenceConfig;
 import com.example.farmSimulation.config.ItemSpriteConfig;
 import com.example.farmSimulation.config.PlayerSpriteConfig;
-import com.example.farmSimulation.model.Animal;
-import com.example.farmSimulation.model.AnimalType;
-import com.example.farmSimulation.model.Tile;
-import com.example.farmSimulation.model.TileData;
-import com.example.farmSimulation.model.WorldMap;
+import com.example.farmSimulation.model.*;
 import com.example.farmSimulation.view.assets.ImageManager;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
@@ -181,6 +177,7 @@ public class WorldRenderer {
             return;
         }
 
+        // Cập nhật Map
         for (int r = 0; r < WorldConfig.NUM_ROWS_ON_SCREEN; r++) {
             for (int c = 0; c < WorldConfig.NUM_COLS_ON_SCREEN; c++) {
                 int logicalCol = startCol + c;
@@ -236,29 +233,29 @@ public class WorldRenderer {
     /**
      * Hiển thị hình ảnh mờ của vật phẩm (hàng rào/hạt giống) tại vị trí con trỏ
      */
-    public void updateGhostPlacement(int tileX, int tileY, double worldOffsetX, double worldOffsetY, com.example.farmSimulation.model.ItemStack currentItem) {
+    public void updateGhostPlacement(int tileX, int tileY, double worldOffsetX, double worldOffsetY, ItemStack currentItem) {
         boolean shouldShow = false;
         Image ghostImage = null;
         double yOffsetCorrection = 0.0;
 
         if (currentItem != null) {
-            com.example.farmSimulation.model.ItemType itemType = currentItem.getItemType();
+            ItemType itemType = currentItem.getItemType();
 
             // Xử lý hiển thị cho Hàng rào
-            if (itemType == com.example.farmSimulation.model.ItemType.WOOD) {
-                ghostImage = assetManager.getFenceTexture(new com.example.farmSimulation.model.FenceData(false));
+            if (itemType == ItemType.WOOD) {
+                ghostImage = assetManager.getFenceTexture(new FenceData(false));
                 shouldShow = true;
                 yOffsetCorrection = FenceConfig.FENCE_Y_OFFSET;
             }
             // Xử lý hiển thị cho Hạt giống
             else if (itemType.name().startsWith("SEEDS_")) {
-                if (itemType == com.example.farmSimulation.model.ItemType.SEEDS_TREE) {
+                if (itemType == ItemType.SEEDS_TREE) {
                     ghostImage = assetManager.getTreeSeedIcon();
                     shouldShow = true;
                     yOffsetCorrection = TreeConfig.TREE_Y_OFFSET;
                 } else {
                     try {
-                        com.example.farmSimulation.model.CropType cropType = com.example.farmSimulation.model.CropType.valueOf(itemType.name().substring(6));
+                        CropType cropType = CropType.valueOf(itemType.name().substring(6));
                         ghostImage = assetManager.getSeedIcon(cropType);
                         shouldShow = true;
                         yOffsetCorrection = CropConfig.CROP_Y_OFFSET;
@@ -267,6 +264,7 @@ public class WorldRenderer {
             }
         }
 
+        // Bắt đầu hiển thị
         if (shouldShow && ghostImage != null) {
             double screenX = tileX * WorldConfig.TILE_SIZE + worldOffsetX;
             double screenY = tileY * WorldConfig.TILE_SIZE + worldOffsetY;
@@ -276,7 +274,7 @@ public class WorldRenderer {
 
             double offsetY;
             // Điều chỉnh vị trí hiển thị cho cây để khớp với logic vẽ cây thông thường
-            if (currentItem != null && currentItem.getItemType() == com.example.farmSimulation.model.ItemType.SEEDS_TREE) {
+            if (currentItem != null && currentItem.getItemType() == ItemType.SEEDS_TREE) {
                 offsetY = -TreeConfig.TREE_Y_OFFSET;
             } else {
                 // Căn giữa theo chiều dọc cho các vật phẩm khác
@@ -337,7 +335,7 @@ public class WorldRenderer {
             int frameIndex = 0;
 
             // Trường hợp trứng: frame phụ thuộc vào biến thể loại trứng
-            if (animal.getType() == com.example.farmSimulation.model.AnimalType.EGG_ENTITY) {
+            if (animal.getType() == AnimalType.EGG_ENTITY) {
                 frameIndex = AnimalConfig.EGG_FRAME_START_INDEX + animal.getVariant();
             }
             // Trường hợp động vật: tính toán animation dựa trên thời gian
@@ -345,7 +343,7 @@ public class WorldRenderer {
                 int frameCount = 1;
                 int animationSpeedMs = 200;
 
-                if (animal.getType() == com.example.farmSimulation.model.AnimalType.CHICKEN) {
+                if (animal.getType() == AnimalType.CHICKEN) {
                     if (animal.getCurrentAction() == Animal.Action.WALK) {
                         frameCount = AnimalConfig.CHICKEN_WALK_FRAMES;
                         animationSpeedMs = AnimalConfig.ANIM_SPEED_CHICKEN_WALK;
@@ -400,7 +398,7 @@ public class WorldRenderer {
 
         // Ưu tiên hiển thị icon đói
         if (animal.isHungry()) {
-            iconImage = assetManager.getItemIcon(com.example.farmSimulation.model.ItemType.SUPER_FEED);
+            iconImage = assetManager.getItemIcon(ItemType.SUPER_FEED);
             needsIcon = iconImage != null;
         }
         // Hiển thị sản phẩm nếu có (ngoại trừ Gà vì đẻ trứng ra đất)
@@ -495,7 +493,7 @@ public class WorldRenderer {
      * Khởi tạo các ô debug hitbox nếu cấu hình cho phép
      */
     private void initDebugHitboxes(int r, int c) {
-        if (TreeConfig.DEBUG_TREE_HITBOX && PlayerSpriteConfig.DEBUG_PLAYER_BOUNDS) {
+        if (TreeConfig.DEBUG_TREE_HITBOX) {
             Rectangle treeHitbox = new Rectangle(TreeConfig.TREE_HITBOX_WIDTH, TreeConfig.TREE_HITBOX_HEIGHT);
             treeHitbox.setFill(null);
             treeHitbox.setStroke(TreeConfig.DEBUG_TREE_HITBOX_COLOR);
@@ -507,7 +505,7 @@ public class WorldRenderer {
             treeHitboxes[r][c] = null;
         }
 
-        if (FenceConfig.DEBUG_FENCE_HITBOX && PlayerSpriteConfig.DEBUG_PLAYER_BOUNDS) {
+        if (FenceConfig.DEBUG_FENCE_HITBOX) {
             Rectangle fenceHitbox = new Rectangle(FenceConfig.FENCE_HITBOX_WIDTH, FenceConfig.FENCE_HITBOX_HEIGHT);
             fenceHitbox.setFill(null);
             fenceHitbox.setStroke(FenceConfig.DEBUG_FENCE_HITBOX_COLOR);
@@ -602,7 +600,7 @@ public class WorldRenderer {
         Image statusIcon = assetManager.getStatusIcon(data.getStatusIndicator());
 
         // Điều chỉnh kích thước icon đặc biệt nếu cần hiển thị kép
-        if (data.getStatusIndicator() == com.example.farmSimulation.model.CropStatusIndicator.NEED_WATER_AND_FERTILIZER) {
+        if (data.getStatusIndicator() == CropStatusIndicator.NEED_WATER_AND_FERTILIZER) {
             double doubleWidth = HudConfig.ICON_SIZE * 2;
             this.statusIconTiles[r][c].setFitWidth(doubleWidth);
             double iconOffset = (HudConfig.ICON_BG_SIZE - doubleWidth) / 2;

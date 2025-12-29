@@ -61,6 +61,7 @@ public class Player {
         this.hotbarItems[0] = new ItemStack(ItemType.AXE, 1);
         this.hotbarItems[1] = new ItemStack(ItemType.WATERING_CAN, 1);
         this.hotbarItems[2] = new ItemStack(ItemType.FERTILIZER, 10);
+
         this.hotbarItems[3] = new ItemStack(ItemType.EGG, 9);
         this.hotbarItems[4] = new ItemStack(ItemType.ITEM_COW, 2);
         this.hotbarItems[5] = new ItemStack(ItemType.ITEM_CHICKEN, 5);
@@ -68,6 +69,13 @@ public class Player {
         this.hotbarItems[7] = new ItemStack(ItemType.ITEM_SHEEP, 2);
         this.hotbarItems[8] = new ItemStack(ItemType.WOOD, 30);
         this.hotbarItems[9] = new ItemStack(ItemType.SUPER_FEED, 36);
+
+//        this.hotbarItems[3] = new ItemStack(ItemType.SEEDS_TOMATO, 9);
+//        this.hotbarItems[4] = new ItemStack(ItemType.SHOVEL, 1);
+//        this.hotbarItems[5] = new ItemStack(ItemType.SEEDS_DAIKON, 5);
+//        this.hotbarItems[6] = new ItemStack(ItemType.SEEDS_CORN, 3);
+//        this.hotbarItems[7] = new ItemStack(ItemType.SEEDS_STRAWBERRY, 2);
+//        this.hotbarItems[8] = new ItemStack(ItemType.HOE, 1);
 
         // Các ô còn lại để trống
     }

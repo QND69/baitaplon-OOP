@@ -11,7 +11,7 @@ public class TimeManager {
 
     // --- Các biến lưu trữ cấu hình thời gian ---
     private double gameTimeSeconds; // Thời gian hiện tại trong game tính bằng giây
-    private final double DAY_CYCLE_DURATION_SECONDS;
+    private final double DAY_CYCLE_DURATION_SECONDS; // Độ dài của một ngày trong game tính bằng giây thực tế
     private final double MIN_LIGHT_INTENSITY;
     private double currentLightIntensity; // Cường độ ánh sáng hiện tại (từ 0.0 đến 1.0)
     private int currentDay; // Ngày hiện tại (bắt đầu tính từ ngày 1)
@@ -40,7 +40,7 @@ public class TimeManager {
 
     // Phương thức cập nhật chính cho hệ thống thời gian
     public void update() {
-        //
+
         // Tự động tính toán thời gian chênh lệch (delta time) để đảm bảo tốc độ game độc lập với tốc độ khung hình (FPS)
         long currentNanos = System.nanoTime();
         if (lastUpdateTimeNanos == 0) {
@@ -69,8 +69,9 @@ public class TimeManager {
 
         // Chuyển đổi tỷ lệ tiến độ thành cường độ ánh sáng (từ 0.0 đến 1.0)
         // Sử dụng hàm sin để tạo hiệu ứng chuyển đổi mượt mà giữa ngày và đêm
-        double radians = cycleProgress * 2 * Math.PI - (Math.PI / 2.0);
-        double lightIntensity = (Math.sin(radians) + 1.0) / 2.0;
+        // y=sin(2xπ-π/2) với x là cycleProgress (0<=x<=1)
+        double radians = cycleProgress * 2 * Math.PI - (Math.PI / 2.0); // Chuyển sang radian
+        double lightIntensity = (Math.sin(radians) + 1.0) / 2.0; // Chuyển khoảng từ [-1,1] thành [0,1]
 
         // Điều chỉnh cường độ ánh sáng dựa trên cấu hình độ sáng tối thiểu
         lightIntensity = this.MIN_LIGHT_INTENSITY + (1.0 - this.MIN_LIGHT_INTENSITY) * lightIntensity;
@@ -90,7 +91,6 @@ public class TimeManager {
         // Cập nhật ngày hiện tại dựa trên tổng thời gian đã trôi qua
         updateCurrentDay();
 
-        //
         // Định dạng thời gian hiển thị dạng HH:MM theo chu kỳ 12 giờ
         double timeInCurrentDay = this.gameTimeSeconds % this.DAY_CYCLE_DURATION_SECONDS;
 
